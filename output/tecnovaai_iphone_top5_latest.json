@@ -1,0 +1,253 @@
+{
+  "last_updated": "2026-03-21T13:21:47.636Z",
+  "products": [
+    {
+      "asin": "B0F7LP2K5D",
+      "pos": 1,
+      "title": "Bark Phone - Safest Phone for Kids & Teens - Monitor Texts, Social Media, and More - Tamper Proof Parental Controls - GPS Tracking - Unlimited Talk/Text A16",
+      "is_prime": null,
+      "is_sponsored": true,
+      "price": 240,
+      "delivery": [
+        {
+          "date": {
+            "by": "Thursday, March 26"
+          },
+          "type": "FREE delivery"
+        },
+        {
+          "date": {
+            "by": "Tomorrow, March 22"
+          },
+          "type": "Prime members"
+        }
+      ],
+      "description": "This is a modal window.\nWhat type of phone is it?\nThe Bark Phone is a Samsung A16. We designed it so that it wouldn’t be recognizable as a kid’s phone — Bark’s parental controls are all internal. Whether you have an iPhone or an Android, you will be able to manage the Bark Phone with no issues.\nHow much do Bark Phone plans cost?\nOur monthly subscription plans range from $29 to $79 per month. Plans include the device, built-in parental controls, unlimited talk & text, data (if you need it), and a Bark Premium subscription. Choose the plan that fits your family’s needs.\nWhat does the Bark Phone come with?\nEvery Bark Phone comes with: Unlimited talk and text, Bark Premium subscription for the entire family, USB-C charging cord, a data plan that fits your family’s needs (non-starter plans only), and a quick start guide for easy setup\nWhat apps are available for the Bark Phone?\nWe have two options: the starter plan is our locked-down version perfect for younger kids or teens who need more supervision. It allows for texting and calling only; our advanced plans allow your child to request any apps in the Google Play store.\nHow is the Bark Phone different from other kids' phones?\nThe Bark Phone offers advanced content monitoring, scanning texts, photos, videos, apps, and social media for dangers, alerting you if needed. It’s customizable, with a starter plan for younger kids and an upgradeable advanced plan as they grow.\nBark Phone\nBark Watch\nBark Home\nMonitor texts, photos & videos\nYes\nMonitor texts, photos & videos\nYes\nMonitor texts, photos & videos\nNo\nLocation tracking\nYes\nLocation tracking\nYes\nLocation tracking\nNo\nSubscription required\nYes\nSubscription required\nYes\nSubscription required\nNo\nAdd apps & social media\nYes\nAdd apps & social media\nNo\nAdd apps & social media\nNo\nManage contacts\nYes\nManage contacts\nYes\nManage contacts\nNo",
+      "specs": {
+        "os": "Android 14",
+        "gps": "True",
+        "asin": "B0F7LP2K5D",
+        "color": "Black-A16",
+        "batteries": "1 C batteries required. (included)",
+        "audio_jack": "No headphone jack",
+        "form_factor": "Bar",
+        "item_weight": "8.4 ounces",
+        "manufacturer": "Bark",
+        "phone_talk_time": "42 Hours",
+        "battery_capacity": "5000 Milliamp Hours",
+        "customer_reviews": "4.4 4.4 out of 5 stars (519) 4.4 out of 5 stars",
+        "special_features": "Built-In GPS, Kids Phone, Water Resistant",
+        "best_sellers_rank": "#5,785 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #116 in Cell Phones",
+        "item_model_number": "Bark Phone A16",
+        "product_dimensions": "6.47 x 3.07 x 0.31 inches",
+        "scanner_resolution": "1080 x 2400",
+        "battery_power_rating": "4900 Watt Hours",
+        "date_first_available": "April 30, 2025",
+        "human_interface_input": "Buttons, Microphone, Touchscreen",
+        "other_display_features": "Wireless",
+        "memory_storage_capacity": "128 GB",
+        "connectivity_technologies": "Wi-Fi",
+        "ram_memory_installed_size": "4 GB",
+        "standing_screen_display_size": "6.7 Inches"
+      }
+    },
+    {
+      "asin": "B0CMPMY9ZZ",
+      "pos": 2,
+      "title": "Apple iPhone 15, 128GB, Black - Unlocked (Renewed)",
+      "is_prime": false,
+      "is_sponsored": false,
+      "price": 389.95,
+      "delivery": [
+        {
+          "date": {
+            "by": "Tuesday, March 24"
+          },
+          "type": "FREE delivery"
+        }
+      ],
+      "description": "Apple iPhone 15, 128GB, Black - Unlocked (Renewed)",
+      "specs": {
+        "os": "iOS 17",
+        "gps": "True",
+        "asin": "B0CMPMY9ZZ",
+        "color": "Black",
+        "weight": "0.45 Pounds",
+        "batteries": "1 D batteries required. (included)",
+        "audio_jack": "USB Type C",
+        "form_factor": "Bar",
+        "item_weight": "7.2 ounces",
+        "manufacturer": "Apple Computer",
+        "phone_talk_time": "20 Hours",
+        "battery_capacity": "3349 Milliamp Hours",
+        "customer_reviews": "4.1 4.1 out of 5 stars (4,970) 4.1 out of 5 stars",
+        "special_features": "Always On Display, Built-In GPS, Dual SIM, Stereo Speakers, Wireless Charging",
+        "whats_in_the_box": "Apple iPhone 15, USB Cable",
+        "best_sellers_rank": "#258 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #2 in Renewed Smartphones #2 in Cell Phones",
+        "item_model_number": "MTLV3LL/A",
+        "product_dimensions": "5.81 x 2.82 x 0.31 inches",
+        "scanner_resolution": "2556 x 1179",
+        "battery_power_rating": "3349 Milliamp Hours",
+        "date_first_available": "November 5, 2023",
+        "human_interface_input": "Touchscreen",
+        "other_camera_features": "Front, Rear",
+        "other_display_features": "Wireless",
+        "memory_storage_capacity": "128 GB",
+        "connectivity_technologies": "Bluetooth, NFC, USB, Wi-Fi",
+        "ram_memory_installed_size": "8 GB",
+        "standing_screen_display_size": "6.1 Inches",
+        "wireless_communication_technologies": "Cellular"
+      }
+    },
+    {
+      "asin": "B09LNW3CY2",
+      "pos": 3,
+      "title": "Apple iPhone 13, 128GB, Midnight - Unlocked (Renewed)",
+      "is_prime": false,
+      "is_sponsored": false,
+      "price": 274.8,
+      "delivery": [
+        {
+          "date": {
+            "by": "Thursday, March 26"
+          },
+          "type": "FREE delivery"
+        },
+        {
+          "date": {
+            "by": "Tomorrow, March 22"
+          },
+          "type": "Prime members"
+        }
+      ],
+      "description": "The iPhone 13 features a 6.1-inch (155 mm) display with Super Retina XDR OLED technology at a resolution of 2532×1170 pixels and a pixel density of about 460 PPI with a refresh rate of 60 Hz and Dolby Vision HDR. Additional features include a dual-camera system, consisting of a 12MP F1.6 wide-angle and another 12MP F2.4 ultra-wide camera with True Tone flash and lens correction. Both rear cameras have larger sensors with improved light sensitivity and Dolby Vision HDR video recording, but only digital zoom and no optical zoom. The front-facing ultra-wide camera is a 12MP F2.2 one. The iPhone 13 video recording supports 4K videos at 60fps as well as 1080p video at up to 240fps. The iPhone 13 model is available in six colors: Midnight, Starlight, Product Red, Blue, Pink, and Green.",
+      "specs": {
+        "os": "iOS 16",
+        "gps": "True",
+        "ram": "4 GB",
+        "asin": "B09LNW3CY2",
+        "color": "Midnight",
+        "weight": "0.38 Pounds",
+        "batteries": "1 LR44 batteries required. (included)",
+        "form_factor": "Bar",
+        "item_weight": "6.1 ounces",
+        "manufacturer": "Apple Computer",
+        "battery_capacity": "3240 Milliamp Hours",
+        "customer_reviews": "4.1 4.1 out of 5 stars (21,514) 4.1 out of 5 stars",
+        "special_features": "Built-In GPS",
+        "whats_in_the_box": "Apple iPhone and Charging Cable",
+        "best_sellers_rank": "#181 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #1 in Renewed Smartphones #1 in Cell Phones",
+        "item_model_number": "iPhone 13",
+        "product_dimensions": "7 x 4 x 5 inches",
+        "scanner_resolution": "1920 x 1080",
+        "battery_power_rating": "3600 Amp Hours",
+        "date_first_available": "November 11, 2021",
+        "human_interface_input": "Touchscreen",
+        "other_camera_features": "Front, Rear",
+        "other_display_features": "Wireless",
+        "memory_storage_capacity": "128 GB",
+        "connectivity_technologies": "Bluetooth, NFC, Wi-Fi",
+        "ram_memory_installed_size": "8 GB",
+        "standing_screen_display_size": "6.1 Inches",
+        "wireless_communication_technologies": "Cellular"
+      }
+    },
+    {
+      "asin": "B08PP5MSVB",
+      "pos": 4,
+      "title": "Apple iPhone 12, 64GB, Black - Fully Unlocked (Renewed)",
+      "is_prime": false,
+      "is_sponsored": false,
+      "price": 194.99,
+      "delivery": [
+        {
+          "date": {
+            "by": "Tuesday, March 24"
+          },
+          "type": "FREE delivery"
+        }
+      ],
+      "description": "Apple iPhone 12 comes with a 6.1-inch OLED display, 5nm Apple A14 Bionic processor, and a dual-camera setup with a large sensor. 5G and Face ID are also standard features along with True Tone support for adjusting the white balance to the ambient lighting, and wide color support for true-to-life colors. The iPhone 12 is available in six different colors: White, Black, , (PRODUCT)RED, Purple, Blue and Green.",
+      "specs": {
+        "os": "iOS 16",
+        "gps": "True",
+        "ram": "4 GB",
+        "asin": "B08PP5MSVB",
+        "color": "Black",
+        "weight": "7 Ounces",
+        "batteries": "1 Lithium Polymer batteries required. (included)",
+        "form_factor": "Slate",
+        "item_weight": "7 ounces",
+        "manufacturer": "Apple Computer",
+        "battery_capacity": "2815 Milliamp Hours",
+        "customer_reviews": "4.1 4.1 out of 5 stars (36,255) 4.1 out of 5 stars",
+        "special_features": "Built-In GPS",
+        "whats_in_the_box": "Apple iPhone, USB Cable",
+        "best_sellers_rank": "#298 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #3 in Renewed Smartphones #4 in Cell Phones",
+        "item_model_number": "iPhone 12",
+        "display_technology": "OLED",
+        "product_dimensions": "7 x 4 x 5 inches",
+        "scanner_resolution": "2532 x 1170",
+        "battery_power_rating": "3600 Milliamp Hours",
+        "date_first_available": "December 3, 2020",
+        "human_interface_input": "Touchscreen",
+        "other_camera_features": "Front, Rear",
+        "other_display_features": "Wireless",
+        "memory_storage_capacity": "64 GB",
+        "connectivity_technologies": "Wi-Fi",
+        "ram_memory_installed_size": "8 GB",
+        "standing_screen_display_size": "6.1 Inches",
+        "is_discontinued_by_manufacturer": "No",
+        "wireless_communication_technologies": "Cellular"
+      }
+    },
+    {
+      "asin": "B0CMZDBVWT",
+      "pos": 5,
+      "title": "Apple iPhone 15 Pro Max, 256GB, Blue Titanium - Unlocked (Renewed)",
+      "is_prime": false,
+      "is_sponsored": false,
+      "price": 588.9,
+      "delivery": [
+        {
+          "date": {
+            "by": "Wednesday, March 25"
+          },
+          "type": "FREE delivery"
+        }
+      ],
+      "description": "Apple iPhone 15 Pro Max, 256GB, Blue Titanium - Unlocked (Renewed)",
+      "specs": {
+        "os": "iOS 17",
+        "gps": "True",
+        "asin": "B0CMZDBVWT",
+        "color": "Blue Titanium",
+        "weight": "0.22 Kilograms",
+        "batteries": "1 D batteries required. (included)",
+        "department": "Cell Phones & Accessories",
+        "form_factor": "Bar",
+        "item_weight": "7.8 ounces",
+        "manufacturer": "Apple",
+        "phone_talk_time": "13 Hours",
+        "battery_capacity": "4422 Milliamp Hours",
+        "customer_reviews": "4.0 4.0 out of 5 stars (2,992) 4.0 out of 5 stars",
+        "special_features": "Built-In GPS, Dual SIM, Mobile Hotspot Capability, Stereo Speakers, Wireless Charging",
+        "whats_in_the_box": "Apple iPhone 15 Pro Max, USB Charging Cable",
+        "best_sellers_rank": "#439 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #5 in Renewed Smartphones #7 in Cell Phones",
+        "item_model_number": "MU693LL/A",
+        "product_dimensions": "10 x 2 x 2.7 inches",
+        "scanner_resolution": "2796 x 1290",
+        "battery_power_rating": "3600 Amp Hours",
+        "date_first_available": "November 9, 2023",
+        "human_interface_input": "Touchscreen",
+        "other_camera_features": "Front, Rear",
+        "other_display_features": "Wireless",
+        "memory_storage_capacity": "256 GB",
+        "connectivity_technologies": "Bluetooth, NFC, USB, Wi-Fi",
+        "ram_memory_installed_size": "8 GB",
+        "standing_screen_display_size": "6.7 Inches",
+        "wireless_communication_technologies": "Cellular"
+      }
+    }
+  ]
+}
