@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { buildGeoContext, readGeoLocationSetting } from "./lib/settings";
 
 type OxylabsSearchItem = {
   asin?: string;
@@ -28,12 +29,11 @@ type ScrapeResponse = {
 
 const OXYLABS_ENDPOINT = "https://data.oxylabs.io/v1/queries";
 const SEARCH_QUERY = "iphone";
-const GEO_LOCATION = "90210";
-const MAX_PRODUCTS = 5;
+const MAX_PRODUCTS = 3;
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 180000;
 const OUTPUT_DIR = join(process.cwd(), "output");
-const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_top5_latest.json");
+const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_top100_latest.json");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,7 +55,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function oxylabsRequest(payload: Record<string, unknown>) {
   const { user, pass } = getCredentials();
-
+  
+  console.log("[oxylabs endpoint]", OXYLABS_ENDPOINT);
+  console.log("[amazon_search payload]", payload);
   const response = await fetch(OXYLABS_ENDPOINT, {
     method: "POST",
     headers: {
@@ -67,6 +69,7 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
   });
 
   const bodyText = await response.text();
+  console.log("--- response body:  ---", bodyText);
   let parsedBody: unknown;
 
   try {
@@ -142,6 +145,20 @@ function extractResultsContent(oxylabsResponse: unknown): unknown {
   const first = results[0];
   if (!isRecord(first)) return null;
   return first.content ?? null;
+}
+
+function extractAllResultsContents(oxylabsResponse: unknown): unknown[] {
+  if (!isRecord(oxylabsResponse)) return [];
+  const results = oxylabsResponse.results;
+  if (!Array.isArray(results) || results.length === 0) return [];
+
+  const contents: unknown[] = [];
+  for (const result of results) {
+    if (!isRecord(result) || result.content == null) continue;
+    contents.push(result.content);
+  }
+
+  return contents;
 }
 
 function collectSearchRows(node: unknown, rows: OxylabsSearchItem[] = []): OxylabsSearchItem[] {
@@ -245,19 +262,31 @@ function mapDetailContent(content: unknown) {
   };
 }
 
-async function fetchSearchProducts() {
+async function fetchSearchProducts(geoLocation: string | null) {
   const payload = {
     source: "amazon_search",
     query: SEARCH_QUERY,
     parse: true,
-    pages: 1,
-    context: [{ key: "geo_location", value: GEO_LOCATION }],
+    pages: 7,
     render: "html",
+    domain: "com",
+    geo_location: geoLocation
   };
 
   const response = await oxylabsRequest(payload);
-  const content = extractResultsContent(response);
-  return uniqueTopProducts(collectSearchRows(content));
+  const contents = extractAllResultsContents(response);
+  const rows = contents.flatMap((content) => collectSearchRows(content));
+  const uniqueRows = uniqueTopProducts(rows);
+
+  console.log("[amazon_search counts]", {
+    pages_requested: payload.pages,
+    page_contents: contents.length,
+    rows_found: rows.length,
+    unique_rows: uniqueRows.length,
+    max_products: MAX_PRODUCTS,
+  });
+
+  return uniqueRows;
 }
 
 async function fetchProductDetails(asin: string) {
@@ -265,10 +294,9 @@ async function fetchProductDetails(asin: string) {
     source: "amazon_product",
     query: asin,
     parse: true,
-    render: "html",
-    context: [{ key: "geo_location", value: GEO_LOCATION }],
+    render: "html"
   };
-
+  console.log("[amazon_product payload]", payload);
   const response = await oxylabsRequest(payload);
   const content = extractResultsContent(response);
   return mapDetailContent(content);
@@ -278,7 +306,7 @@ async function persistOutput(payload: ScrapeResponse) {
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const timestamp = payload.last_updated.replace(/[:.]/g, "-");
-  const timestampedFile = join(OUTPUT_DIR, `tecnovaai_iphone_top5_${timestamp}.json`);
+  const timestampedFile = join(OUTPUT_DIR, `tecnovaai_iphone_top100_${timestamp}.json`);
   const data = `${JSON.stringify(payload, null, 2)}\n`;
 
   await writeFile(timestampedFile, data, "utf8");
@@ -297,7 +325,8 @@ async function readLatestOutput() {
 }
 
 async function scrapeAndPersist() {
-  const found = await fetchSearchProducts();
+  const geoLocation = await readGeoLocationSetting();
+  const found = await fetchSearchProducts(geoLocation);
 
   const products: ScrapedProduct[] = [];
   for (const row of found) {
@@ -336,7 +365,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "No saved output found yet. Run a scrape first with POST /api/scrape to generate output/tecnovaai_iphone_top5_latest.json.",
+            "No saved output found yet. Run a scrape first with POST /api/scrape to generate output/tecnovaai_iphone_top100_latest.json.",
         },
         { status: 404 }
       );

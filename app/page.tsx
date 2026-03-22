@@ -17,6 +17,11 @@ type ScrapeData = {
   products: ProductRow[];
 };
 
+type SettingsData = {
+  geo_location: string | null;
+  default_geo_location: string;
+};
+
 function formatDelivery(value: unknown): string {
   if (!value) return "-";
   if (typeof value === "string") return value;
@@ -42,9 +47,15 @@ function Spinner() {
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<ScrapeData | null>(null);
+  const [settings, setSettings] = useState<SettingsData | null>(null);
+  const [draftGeoLocation, setDraftGeoLocation] = useState("");
+  const [isEditingGeo, setIsEditingGeo] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
+  const [isSavingGeo, setIsSavingGeo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const currentGeoLocation = settings ? (settings.geo_location ?? "null") : "90210";
 
   async function loadData() {
     try {
@@ -84,9 +95,56 @@ export default function Home() {
     }
   }
 
+  async function loadSettings() {
+    try {
+      const response = await fetch("/api/scrape/settings", { cache: "no-store" });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to load geo-location setting.");
+      }
+
+      const nextSettings = body as SettingsData;
+      setSettings(nextSettings);
+      setDraftGeoLocation(nextSettings.geo_location ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    }
+  }
+
+  async function saveGeoLocation() {
+    try {
+      setIsSavingGeo(true);
+      setError(null);
+
+      const value = draftGeoLocation.trim();
+      const response = await fetch("/api/scrape/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ geo_location: value === "" ? null : value }),
+        cache: "no-store",
+      });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to save geo-location setting.");
+      }
+
+      const nextSettings = body as SettingsData;
+      setSettings(nextSettings);
+      setDraftGeoLocation(nextSettings.geo_location ?? "");
+      setIsEditingGeo(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setIsSavingGeo(false);
+    }
+  }
+
   useEffect(() => {
     setMounted(true);
     void loadData();
+    void loadSettings();
   }, []);
 
   const exportJson = useMemo(() => {
@@ -113,6 +171,49 @@ export default function Home() {
       <section className="rounded-lg border border-foreground/20 p-5">
         <h1 className="text-2xl font-semibold">TechNovaAI Amazon iPhone Monitor</h1>
         <p className="mt-1 text-sm opacity-80">Last updated: {data?.last_updated ?? "-"}</p>
+
+        <div className="mt-4 rounded-md border border-foreground/20 p-4 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              Geo-location: <strong>{currentGeoLocation}</strong>
+            </span>
+            {!isEditingGeo ? (
+              <button
+                onClick={() => setIsEditingGeo(true)}
+                className="cursor-pointer rounded-md border border-foreground/30 px-3 py-1 font-medium"
+              >
+                Edit
+              </button>
+            ) : (
+              <>
+                <input
+                  value={draftGeoLocation}
+                  onChange={(event) => setDraftGeoLocation(event.target.value)}
+                  placeholder={settings?.default_geo_location ?? "90210"}
+                  className="rounded-md border border-foreground/30 px-3 py-1"
+                />
+                <button
+                  onClick={() => void saveGeoLocation()}
+                  disabled={isSavingGeo}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-foreground/30 px-3 py-1 font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSavingGeo && <Spinner />}
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setDraftGeoLocation(settings?.geo_location ?? "");
+                    setIsEditingGeo(false);
+                  }}
+                  className="cursor-pointer rounded-md border border-foreground/30 px-3 py-1 font-medium"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+          <p className="mt-2 opacity-70">Enter a 5-digit ZIP from 00501 to 99950, or leave it blank for null.</p>
+        </div>
 
         <div className="mt-4 flex gap-3">
           <button
