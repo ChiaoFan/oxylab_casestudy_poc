@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { initScheduler } from "../scrape/lib/scheduler";
-import { readAutoScrapingEnabled } from "../scrape/lib/settings";
+import { initOxylabsSchedulerSync } from "../scrape/system/service";
 
 let initialized = false;
 
 export async function GET() {
   try {
     if (!initialized) {
-      const enabled = await readAutoScrapingEnabled();
-      if (enabled) {
-        initScheduler();
-      }
+      initOxylabsSchedulerSync();
       initialized = true;
       console.log("[Health] Scheduler initialized on startup");
     }

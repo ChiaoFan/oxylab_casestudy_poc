@@ -44,14 +44,14 @@ type SettingsData = {
   default_geo_location: string;
 };
 
-type SchedulerStatus = {
-  enabled: boolean;
-  isInitialized: boolean;
-  isRunning: boolean;
-  lastRunTime: string | null;
-  nextRunTime: string | null;
-  lastError: string | null;
-  currentTime: string;
+type OxylabsSchedulerStatus = {
+  exists: boolean;
+  scheduleId: string | null;
+  active: boolean | null;
+  cron: string | null;
+  endTime: string | null;
+  nextRunAt: string | null;
+  itemsCount: number | null;
 };
 
 type SortKey = "price" | "is_prime" | "is_sponsored";
@@ -108,11 +108,14 @@ function formatPrice(value: number | string | null): string {
   return value;
 }
 
-function formatLocalDateTime(isoString: string | null): string {
-  if (!isoString) return "-";
+function formatDateTime(value: string | null): string {
+  if (!value) return "-";
   try {
-    const date = new Date(isoString);
-    return date.toLocaleString(undefined, {
+    const normalized = value.includes("Z") || value.includes("+")
+      ? value
+      : (value.includes("T") ? value : value.replace(" ", "T")) + "Z";
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -121,7 +124,7 @@ function formatLocalDateTime(isoString: string | null): string {
       second: "2-digit",
     });
   } catch {
-    return isoString;
+    return value;
   }
 }
 
@@ -210,9 +213,8 @@ export default function Home() {
   const [sortKey, setSortKey] = useState<SortKey>("price");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [error, setError] = useState<string | null>(null);
-  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
-  const [isTogglingScheduler, setIsTogglingScheduler] = useState(false);
-  const [timeUntilNextRun, setTimeUntilNextRun] = useState<string | null>(null);
+  const [oxylabsSchedulerStatus, setOxylabsSchedulerStatus] = useState<OxylabsSchedulerStatus | null>(null);
+  const [isTogglingOxylabsScheduler, setIsTogglingOxylabsScheduler] = useState(false);
 
   const currentGeoLocation = settings ? (settings.geo_location ?? "null") : "90210";
 
@@ -302,56 +304,66 @@ export default function Home() {
 
   async function loadSchedulerStatus() {
     try {
-      const response = await fetch("/api/scrape/scheduler/status", { cache: "no-store" });
+      const response = await fetch("/api/scrape/system", { cache: "no-store" });
       const body = await response.json();
 
       if (!response.ok) {
         throw new Error(body?.error || "Failed to load scheduler status.");
       }
 
-      setSchedulerStatus(body as SchedulerStatus);
+      setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
     } catch (err) {
       console.error("Error loading scheduler status:", err);
     }
   }
 
-  async function enableScheduler() {
+  async function enableOxylabsScheduler() {
     try {
-      setIsTogglingScheduler(true);
+      setIsTogglingOxylabsScheduler(true);
       setError(null);
 
-      const response = await fetch("/api/scrape/scheduler/enable", { method: "POST", cache: "no-store" });
+      const response = await fetch("/api/scrape/system", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enable_oxylabs_scheduler" }),
+        cache: "no-store",
+      });
       const body = await response.json();
 
       if (!response.ok) {
-        throw new Error(body?.error || "Failed to enable scheduler.");
+        throw new Error(body?.error || "Failed to enable Oxylabs scheduler.");
       }
 
-      await loadSchedulerStatus();
+      setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setIsTogglingScheduler(false);
+      setIsTogglingOxylabsScheduler(false);
     }
   }
 
-  async function disableScheduler() {
+  async function disableOxylabsScheduler() {
     try {
-      setIsTogglingScheduler(true);
+      setIsTogglingOxylabsScheduler(true);
       setError(null);
 
-      const response = await fetch("/api/scrape/scheduler/disable", { method: "POST", cache: "no-store" });
+      const response = await fetch("/api/scrape/system", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable_oxylabs_scheduler" }),
+        cache: "no-store",
+      });
       const body = await response.json();
 
       if (!response.ok) {
-        throw new Error(body?.error || "Failed to disable scheduler.");
+        throw new Error(body?.error || "Failed to disable Oxylabs scheduler.");
       }
 
-      await loadSchedulerStatus();
+      setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setIsTogglingScheduler(false);
+      setIsTogglingOxylabsScheduler(false);
     }
   }
 
@@ -373,29 +385,6 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, []);
-
-  // Update countdown timer every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (schedulerStatus?.nextRunTime) {
-        const nextRun = new Date(schedulerStatus.nextRunTime).getTime();
-        const now = new Date().getTime();
-        const diff = nextRun - now;
-
-        if (diff > 0) {
-          const hours = Math.floor(diff / 3600000);
-          const mins = Math.floor((diff % 3600000) / 60000);
-          const secs = Math.floor((diff % 60000) / 1000);
-          setTimeUntilNextRun(`${hours}h ${mins}m ${secs}s`);
-        } else {
-          setTimeUntilNextRun("Soon...");
-          void loadSchedulerStatus();
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [schedulerStatus?.nextRunTime]);
 
   const exportJson = useMemo(() => {
     if (!data) return "";
@@ -446,7 +435,7 @@ export default function Home() {
     const anchor = document.createElement("a");
     const timestamp = data.last_updated.replace(/[:.]/g, "-");
     anchor.href = url;
-    anchor.download = `tecnovaai_iphone_top100_${timestamp}.json`;
+    anchor.download = `json_${timestamp}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -470,7 +459,7 @@ export default function Home() {
       const anchor = document.createElement("a");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       anchor.href = url;
-      anchor.download = `tecnovaai_iphone_markdown_${timestamp}.md`;
+      anchor.download = `markdown_${timestamp}.md`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -501,7 +490,7 @@ export default function Home() {
               TechNovaAI Amazon iPhone Monitor
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Last updated: {formatLocalDateTime(data?.last_updated ?? null)}
+              Last updated: {formatDateTime(data?.last_updated ?? null)}
             </Typography>
           </Box>
 
@@ -539,45 +528,35 @@ export default function Home() {
 
           <Paper
             variant="outlined"
-            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#12BFB3", 0.3) }}
+            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#3AA8D8", 0.28) }}
           >
-            <Stack spacing={1.5}>
-              <Box>
-                <Box>
-                  <Typography variant="body2" fontWeight={600}>
-                    Hourly Auto-Scraping
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: "block" }}>
-                    {schedulerStatus?.enabled ? "Active - Running at the start of each hour" : "Disabled - Click to enable"}
-                  </Typography>
-                  {schedulerStatus?.enabled && schedulerStatus?.nextRunTime && (
-                    <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
-                      Next scheduled run: {formatLocalDateTime(schedulerStatus.nextRunTime)}
-                    </Typography>
-                  )}
-                  {schedulerStatus?.enabled && timeUntilNextRun && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: "block" }}>
-                      Next run in: <strong>{timeUntilNextRun}</strong>
-                    </Typography>
-                  )}
-                </Box>
-                <Button
-                  sx={{ mt: 1 }}
-                  variant={schedulerStatus?.enabled ? "outlined" : "contained"}
-                  color={schedulerStatus?.enabled ? "error" : "primary"}
-                  onClick={() => (schedulerStatus?.enabled ? void disableScheduler() : void enableScheduler())}
-                  disabled={isTogglingScheduler}
-                  startIcon={isTogglingScheduler ? <CircularProgress size={14} /> : undefined}
-                >
-                  {isTogglingScheduler ? "..." : schedulerStatus?.enabled ? "Disable" : "Enable"}
-                </Button>
-              </Box>
+            <Stack spacing={1.25}>
+              <Typography variant="body2" fontWeight={600}>
+                Hourly Auto-Scraping with Oxylabs Scheduler
+              </Typography>
 
-              {schedulerStatus?.lastError && (
-                <Alert severity="error" sx={{ mt: 1 }}>
-                  Last error: {schedulerStatus.lastError}
-                </Alert>
-              )}
+              <Typography variant="caption" color="text.secondary">
+                Status: <strong>{oxylabsSchedulerStatus?.active ? "Active" : "Paused"}</strong>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Next Oxylabs run: <strong>{formatDateTime(oxylabsSchedulerStatus?.nextRunAt ?? null)}</strong>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Schedule ID: <strong>{oxylabsSchedulerStatus?.scheduleId ?? "-"}</strong>
+              </Typography>
+
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Button
+                  size="small"
+                  variant={oxylabsSchedulerStatus?.active ? "outlined" : "contained"}
+                  color={oxylabsSchedulerStatus?.active ? "error" : "primary"}
+                  onClick={() => (oxylabsSchedulerStatus?.active ? void disableOxylabsScheduler() : void enableOxylabsScheduler())}
+                  disabled={isTogglingOxylabsScheduler}
+                  startIcon={isTogglingOxylabsScheduler ? <CircularProgress size={14} /> : undefined}
+                >
+                  {isTogglingOxylabsScheduler ? "Saving..." : oxylabsSchedulerStatus?.active ? "Disable" : "Enable"}
+                </Button>
+              </Stack>
             </Stack>
           </Paper>
 

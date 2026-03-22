@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_GEO_LOCATION, normalizeGeoLocation, readGeoLocationSetting, writeGeoLocationSetting } from "../lib/settings";
+import { DEFAULT_GEO_LOCATION, normalizeGeoLocation, readGeoLocationSetting, writeGeoLocationSetting } from "../system/service";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

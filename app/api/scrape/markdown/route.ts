@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const OUTPUT_DIR = join(process.cwd(), "output");
-const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_markdown_latest.md");
+const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "markdown_latest.md");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "No markdown output found yet. Run a scrape first with POST /api/scrape to generate output/tecnovaai_iphone_markdown_latest.md.",
+            "No markdown output found yet. Run a scrape first with POST /api/scrape to generate output/markdown_latest.md.",
         },
         { status: 404 }
       );

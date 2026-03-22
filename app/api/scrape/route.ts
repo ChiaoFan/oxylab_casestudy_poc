@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { readGeoLocationSetting } from "./lib/settings";
+import { readGeoLocationSetting } from "./system/service";
 
 type OxylabsSearchItem = {
   asin?: string;
@@ -10,6 +10,10 @@ type OxylabsSearchItem = {
   is_sponsored?: boolean;
 };
 
+/** 
+ * The product data we want to extract for each scraped product. 
+ * 
+ *  **/
 type ScrapedProduct = {
   asin: string;
   pos: number;
@@ -39,13 +43,13 @@ type ProductMarkdown = {
 
 const OXYLABS_ENDPOINT = "https://data.oxylabs.io/v1/queries";
 const SEARCH_QUERY = "iphone";
-const MAX_PRODUCTS = 3;
+const MAX_PRODUCTS = 100;
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 600000;
 const ESTIMATED_PRODUCTS_PER_SEARCH_PAGE = 15;
 const OUTPUT_DIR = join(process.cwd(), "output");
-const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_top100_latest.json");
-const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_markdown_latest.md");
+const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "json_latest.json");
+const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "markdown_latest.md");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -303,12 +307,16 @@ async function fetchSearchProducts(geoLocation: string | null) {
   };
 
   const response = await oxylabsRequest(payload);
-  const contents = extractResultContentsByType(response, "parsed");
+  return extractTopProductsFromSearchResponse(response, payload.pages);
+}
+
+function extractTopProductsFromSearchResponse(oxylabsResponse: unknown, pagesRequested?: number) {
+  const contents = extractResultContentsByType(oxylabsResponse, "parsed");
   const rows = contents.flatMap((content) => collectSearchRows(content));
   const uniqueRows = uniqueTopProducts(rows);
 
   console.log("[amazon_search counts]", {
-    pages_requested: payload.pages,
+    pages_requested: pagesRequested ?? null,
     page_contents: contents.length,
     rows_found: rows.length,
     unique_rows: uniqueRows.length,
@@ -343,7 +351,7 @@ async function persistOutput(payload: ScrapeResponse) {
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const timestamp = payload.last_updated.replace(/[:.]/g, "-");
-  const timestampedFile = join(OUTPUT_DIR, `tecnovaai_iphone_top100_${timestamp}.json`);
+  const timestampedFile = join(OUTPUT_DIR, `json_${timestamp}.json`);
   const data = `${JSON.stringify(payload, null, 2)}\n`;
 
   await writeFile(timestampedFile, data, "utf8");
@@ -379,7 +387,7 @@ async function persistMarkdownOutput(
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const timestamp = lastUpdated.replace(/[:.]/g, "-");
-  const timestampedFile = join(OUTPUT_DIR, `tecnovaai_iphone_markdown_${timestamp}.md`);
+  const timestampedFile = join(OUTPUT_DIR, `markdown_${timestamp}.md`);
   const data = `${buildMarkdownDocument(lastUpdated, runConfig, products)}\n`;
 
   await writeFile(timestampedFile, data, "utf8");
@@ -397,10 +405,7 @@ async function readLatestOutput() {
   return parsed;
 }
 
-async function scrapeAndPersist() {
-  const geoLocation = await readGeoLocationSetting();
-  const found = await fetchSearchProducts(geoLocation);
-
+async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: string | null, lastUpdated?: string) {
   const products: ScrapedProduct[] = [];
   const markdownProducts: ProductMarkdown[] = [];
   for (const row of found) {
@@ -428,7 +433,7 @@ async function scrapeAndPersist() {
   }
 
   const body: ScrapeResponse = {
-    last_updated: new Date().toISOString(),
+    last_updated: lastUpdated ?? new Date().toISOString(),
     run_config: {
       query: SEARCH_QUERY,
       geo_location: geoLocation,
@@ -441,7 +446,19 @@ async function scrapeAndPersist() {
   return body;
 }
 
-export { scrapeAndPersist };
+async function scrapeAndPersist() {
+  const geoLocation = await readGeoLocationSetting();
+  const found = await fetchSearchProducts(geoLocation);
+  return persistScrapeResults(found, geoLocation);
+}
+
+async function scrapeAndPersistFromSearchResponse(oxylabsResponse: unknown, options?: { geoLocation?: string | null; lastUpdated?: string | null }) {
+  const geoLocation = options?.geoLocation ?? (await readGeoLocationSetting());
+  const found = extractTopProductsFromSearchResponse(oxylabsResponse);
+  return persistScrapeResults(found, geoLocation, options?.lastUpdated ?? undefined);
+}
+
+export { scrapeAndPersist, scrapeAndPersistFromSearchResponse };
 
 export async function GET() {
   try {
@@ -454,7 +471,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "No saved output found yet. Run a scrape first with POST /api/scrape to generate output/tecnovaai_iphone_top100_latest.json.",
+            "No saved output found yet. Run a scrape first with POST /api/scrape to generate output/json_latest.json.",
         },
         { status: 404 }
       );
