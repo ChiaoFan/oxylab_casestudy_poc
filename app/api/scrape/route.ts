@@ -11,7 +11,7 @@ type OxylabsSearchItem = {
 };
 
 /** 
- * The product data we want to extract for each scraped product. 
+ * The product data we want to extract for each iphone product page. 
  * 
  *  **/
 type ScrapedProduct = {
@@ -25,6 +25,7 @@ type ScrapedProduct = {
   description: unknown;
   product_details: unknown;
 };
+
 
 type ScrapeResponse = {
   last_updated: string;
@@ -326,14 +327,19 @@ function extractTopProductsFromSearchResponse(oxylabsResponse: unknown, pagesReq
   return uniqueRows;
 }
 
-async function fetchProductDetails(asin: string, geoLocation: string | null) {
+/**
+ * Features: 
+ * 
+ * 
+ *  **/
+
+async function fetchProductDetails(asin: string) {
   const payload = {
     source: "amazon_product",
     domain: "com",
     query: asin,
     parse: true,
-    markdown: true,
-    ...(geoLocation ? { geo_location: geoLocation } : {}),
+    markdown: true
   };
 
   console.log("[amazon_product payload]", payload);
@@ -410,7 +416,7 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
   const markdownProducts: ProductMarkdown[] = [];
   for (const row of found) {
     if (!row.asin) continue;
-    const details = await fetchProductDetails(row.asin, geoLocation);
+    const details = await fetchProductDetails(row.asin);
     const pos = row.pos ?? products.length + 1;
 
     products.push({

@@ -50,7 +50,7 @@ type OxylabsSchedulerStatus = {
   nextRunAt: string | null;
 };
 
-type SortKey = "price" | "is_prime" | "is_sponsored";
+type SortKey = "pos" | "price" | "is_prime" | "is_sponsored";
 type SortDirection = "asc" | "desc";
 
 const oxylabsSoftTheme = createTheme({
@@ -206,7 +206,7 @@ export default function Home() {
   const [isScraping, setIsScraping] = useState(false);
   const [isSavingGeo, setIsSavingGeo] = useState(false);
   const [isDownloadingMarkdown, setIsDownloadingMarkdown] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("price");
+  const [sortKey, setSortKey] = useState<SortKey>("pos");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [error, setError] = useState<string | null>(null);
   const [oxylabsSchedulerStatus, setOxylabsSchedulerStatus] = useState<OxylabsSchedulerStatus | null>(null);
@@ -391,6 +391,10 @@ export default function Home() {
     const products = [...(data?.products ?? [])];
 
     products.sort((a, b) => {
+      if (sortKey === "pos") {
+        return sortDirection === "asc" ? a.pos - b.pos : b.pos - a.pos;
+      }
+
       if (sortKey === "price") {
         const aValue = getPriceSortValue(a.price);
         const bValue = getPriceSortValue(b.price);
@@ -630,7 +634,20 @@ export default function Home() {
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Position</TableCell>
+                    <TableCell sortDirection={sortKey === "pos" ? sortDirection : false}>
+                      <TableSortLabel
+                        active={sortKey === "pos"}
+                        direction={sortKey === "pos" ? sortDirection : "asc"}
+                        onClick={() => handleSortClick("pos")}
+                        sx={{
+                          "& .MuiTableSortLabel-icon": {
+                            opacity: 1,
+                          },
+                        }}
+                      >
+                        Position
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell>ASIN</TableCell>
                     <TableCell sx={{ minWidth: 260 }}>Title</TableCell>
                     <TableCell sortDirection={sortKey === "price" ? sortDirection : false}>
