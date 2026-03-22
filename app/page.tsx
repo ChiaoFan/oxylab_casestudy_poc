@@ -1,6 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  CssBaseline,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { alpha, createTheme, ThemeProvider } from "@mui/material/styles";
 
 type ProductRow = {
   asin: string;
@@ -27,6 +47,51 @@ type SettingsData = {
 type SortKey = "price" | "is_prime" | "is_sponsored";
 type SortDirection = "asc" | "desc";
 
+const oxylabsSoftTheme = createTheme({
+  palette: {
+    mode: "light",
+    primary: { main: "#12BFB3" },
+    secondary: { main: "#3AA8D8" },
+    background: {
+      default: "#F5FAFC",
+      paper: "#FFFFFF",
+    },
+    text: {
+      primary: "#15324A",
+      secondary: "#587087",
+    },
+    divider: alpha("#6B8CA8", 0.22),
+  },
+  shape: { borderRadius: 12 },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          border: `1px solid ${alpha("#6B8CA8", 0.14)}`,
+          boxShadow: "0 8px 24px rgba(12, 73, 109, 0.06)",
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          backgroundColor: "#F1F8FB",
+          color: "#1C3E59",
+          fontWeight: 600,
+        },
+      },
+    },
+  },
+});
+
 function formatPrice(value: number | string | null): string {
   if (value === null || value === undefined) return "-";
   if (typeof value === "number") return `$${value.toFixed(2)}`;
@@ -42,43 +107,66 @@ function getPriceSortValue(value: number | string | null): number | null {
 }
 
 function renderStructuredValue(value: unknown) {
-  if (value === null || value === undefined) return <span>-</span>;
+  if (value === null || value === undefined) return <Typography variant="body2">-</Typography>;
 
   if (typeof value === "string") {
     if (value.length <= 180) {
-      return <span className="whitespace-pre-wrap">{value}</span>;
+      return <Typography variant="body2">{value}</Typography>;
     }
 
     return (
-      <details>
-        <summary className="cursor-pointer opacity-80">View text</summary>
-        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded border border-foreground/20 p-2 text-xs">
+      <Box component="details">
+        <Box component="summary" sx={{ cursor: "pointer", color: "text.secondary" }}>
+          View text
+        </Box>
+        <Box
+          component="pre"
+          sx={{
+            mt: 1,
+            p: 1,
+            maxHeight: 200,
+            overflow: "auto",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 1,
+            fontSize: 12,
+            whiteSpace: "pre-wrap",
+            m: 0,
+          }}
+        >
           {value}
-        </pre>
-      </details>
+        </Box>
+      </Box>
     );
   }
 
   if (typeof value === "number" || typeof value === "boolean") {
-    return <span>{String(value)}</span>;
+    return <Typography variant="body2">{String(value)}</Typography>;
   }
 
   return (
-    <details>
-      <summary className="cursor-pointer opacity-80">View JSON</summary>
-      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded border border-foreground/20 p-2 text-xs">
+    <Box component="details">
+      <Box component="summary" sx={{ cursor: "pointer", color: "text.secondary" }}>
+        View JSON
+      </Box>
+      <Box
+        component="pre"
+        sx={{
+          mt: 1,
+          p: 1,
+          maxHeight: 200,
+          overflow: "auto",
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
+          fontSize: 12,
+          whiteSpace: "pre-wrap",
+          m: 0,
+        }}
+      >
         {JSON.stringify(value, null, 2)}
-      </pre>
-    </details>
-  );
-}
-
-function Spinner() {
-  return (
-    <span
-      className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-      aria-label="Loading"
-    />
+      </Box>
+    </Box>
   );
 }
 
@@ -230,11 +318,6 @@ export default function Home() {
     setSortDirection("asc");
   }
 
-  function sortIndicator(key: SortKey): string {
-    if (sortKey !== key) return "↕";
-    return sortDirection === "asc" ? "↑" : "↓";
-  }
-
   function downloadJson() {
     if (!data) return;
     const blob = new Blob([exportJson], { type: "application/json" });
@@ -279,148 +362,213 @@ export default function Home() {
   if (!mounted) return null;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 p-6 font-sans">
-      <section className="rounded-lg border border-foreground/20 p-5">
-        <h1 className="text-2xl font-semibold">TechNovaAI Amazon iPhone Monitor</h1>
-        <p className="mt-1 text-sm opacity-80">Last updated: {data?.last_updated ?? "-"}</p>
+    <ThemeProvider theme={oxylabsSoftTheme}>
+      <CssBaseline />
+      <Box
+        sx={{
+          minHeight: "100vh",
+          py: 4,
+          background:
+            "radial-gradient(circle at 10% 0%, rgba(18,191,179,0.10) 0%, rgba(245,250,252,0) 38%), radial-gradient(circle at 90% 10%, rgba(58,168,216,0.10) 0%, rgba(245,250,252,0) 36%), #F5FAFC",
+        }}
+      >
+        <Container maxWidth="xl">
+          <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, backgroundColor: alpha("#FFFFFF", 0.96) }}>
+            <Stack spacing={2.5}>
+          <Box>
+            <Typography variant="h4" fontWeight={600}>
+              TechNovaAI Amazon iPhone Monitor
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Last updated: {data?.last_updated ?? "-"}
+            </Typography>
+          </Box>
 
-        <div className="mt-4 rounded-md border border-foreground/20 p-4 text-sm">
-          <p className="mb-3">
-            Amazon marketplace: <strong>amazon.com</strong>
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <span>
-              Postcode (Geo-location): <strong>{currentGeoLocation}</strong>
-            </span>
-            {!isEditingGeo ? (
-              <button
-                onClick={() => setIsEditingGeo(true)}
-                className="cursor-pointer rounded-md border border-foreground/30 px-3 py-1 font-medium"
-              >
-                Edit
-              </button>
-            ) : (
-              <>
-                <input
-                  value={draftGeoLocation}
-                  onChange={(event) => setDraftGeoLocation(event.target.value)}
-                  placeholder={settings?.default_geo_location ?? "90210"}
-                  className="rounded-md border border-foreground/30 px-3 py-1"
-                />
-                <button
-                  onClick={() => void saveGeoLocation()}
-                  disabled={isSavingGeo}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-foreground/30 px-3 py-1 font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isSavingGeo && <Spinner />}
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setDraftGeoLocation(settings?.geo_location ?? "");
-                    setIsEditingGeo(false);
-                  }}
-                  className="cursor-pointer rounded-md border border-foreground/30 px-3 py-1 font-medium"
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-          <p className="mt-2 opacity-70">Enter a 5-digit ZIP from 00501 to 99950, or leave it blank for null.</p>
-        </div>
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#6B8CA8", 0.2) }}
+          >
+            <Stack spacing={1.5}>
+              <Typography variant="body2">
+                Amazon marketplace: <strong>amazon.com</strong>
+              </Typography>
 
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={() => void runScrape()}
-            disabled={isScraping}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-foreground/30 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isScraping && <Spinner />}
-            {isScraping ? "Scraping…" : "Run New Scrape"}
-          </button>
-          <button
-            onClick={downloadJson}
-            disabled={!data}
-            className="cursor-pointer rounded-md border border-foreground/30 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Download JSON
-          </button>
-          <button
-            onClick={() => void downloadMarkdownFile()}
-            disabled={isDownloadingMarkdown}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-foreground/30 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isDownloadingMarkdown && <Spinner />}
-            {isDownloadingMarkdown ? "Downloading…" : "Download Markdown"}
-          </button>
-        </div>
+              <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Typography variant="body2">
+                  Postcode (Geo-location): <strong>{currentGeoLocation}</strong>
+                </Typography>
 
-        <div className="mt-6">
-          {isLoading && <p className="text-sm">Loading latest scrape data…</p>}
-          {error && <p className="text-sm text-red-500">Error: {error}</p>}
-          {!isLoading && !error && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-foreground/20 text-left">
-                    <th className="px-3 py-2 font-medium">Position</th>
-                    <th className="px-3 py-2 font-medium">ASIN</th>
-                    <th className="px-3 py-2 font-medium">Title</th>
-                    <th className="px-3 py-2 font-medium">
-                      <button
-                        onClick={() => handleSortClick("price")}
-                        className="cursor-pointer"
-                        type="button"
-                      >
-                        Price {sortIndicator("price")}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 font-medium">
-                      <button
-                        onClick={() => handleSortClick("is_prime")}
-                        className="cursor-pointer"
-                        type="button"
-                      >
-                        Prime {sortIndicator("is_prime")}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 font-medium">
-                      <button
-                        onClick={() => handleSortClick("is_sponsored")}
-                        className="cursor-pointer"
-                        type="button"
-                      >
-                        Sponsored {sortIndicator("is_sponsored")}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 font-medium">Delivery</th>
-                    <th className="px-3 py-2 font-medium">Description</th>
-                    <th className="px-3 py-2 font-medium">Product Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedProducts.map((product) => (
-                    <tr key={product.asin} className="border-b border-foreground/10 align-top">
-                      <td className="px-3 py-2">{product.pos}</td>
-                      <td className="px-3 py-2">{product.asin}</td>
-                      <td className="px-3 py-2 min-w-[260px]">{product.title ?? "-"}</td>
-                      <td className="px-3 py-2">{formatPrice(product.price)}</td>
-                      <td className="px-3 py-2">{product.is_prime === null ? "-" : product.is_prime ? "Yes" : "No"}</td>
-                      <td className="px-3 py-2">
-                        {product.is_sponsored === null ? "-" : product.is_sponsored ? "Yes" : "No"}
-                      </td>
-                      <td className="px-3 py-2 min-w-[220px]">{renderStructuredValue(product.delivery)}</td>
-                      <td className="px-3 py-2 min-w-[300px]">{renderStructuredValue(product.description)}</td>
-                      <td className="px-3 py-2 min-w-[320px]">{renderStructuredValue(product.product_details)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                {!isEditingGeo ? (
+                  <Button size="small" variant="outlined" color="secondary" onClick={() => setIsEditingGeo(true)}>
+                    Edit
+                  </Button>
+                ) : (
+                  <>
+                    <TextField
+                      size="small"
+                      value={draftGeoLocation}
+                      onChange={(event) => setDraftGeoLocation(event.target.value)}
+                      placeholder={settings?.default_geo_location ?? "90210"}
+                    />
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => void saveGeoLocation()}
+                      disabled={isSavingGeo}
+                      startIcon={isSavingGeo ? <CircularProgress size={14} /> : undefined}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="secondary"
+                      onClick={() => {
+                        setDraftGeoLocation(settings?.geo_location ?? "");
+                        setIsEditingGeo(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                )}
+              </Stack>
+
+              <Typography variant="caption" color="text.secondary">
+                Enter a 5-digit ZIP from 00501 to 99950, or leave it blank for null.
+              </Typography>
+            </Stack>
+          </Paper>
+
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+            <Button
+              variant="contained"
+              onClick={() => void runScrape()}
+              disabled={isScraping}
+              startIcon={isScraping ? <CircularProgress size={14} /> : undefined}
+            >
+              {isScraping ? "Scraping…" : "Run New Scrape"}
+            </Button>
+
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={downloadJson}
+              disabled={!data}
+              sx={{ boxShadow: "0 8px 18px rgba(58, 168, 216, 0.28)" }}
+            >
+              Download JSON
+            </Button>
+
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => void downloadMarkdownFile()}
+              disabled={isDownloadingMarkdown}
+              startIcon={isDownloadingMarkdown ? <CircularProgress size={14} /> : undefined}
+              sx={{ boxShadow: "0 8px 18px rgba(18, 191, 179, 0.28)" }}
+            >
+              {isDownloadingMarkdown ? "Downloading…" : "Download Markdown"}
+            </Button>
+          </Stack>
+
+          {isLoading && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={16} />
+              <Typography variant="body2">Loading latest scrape data…</Typography>
+            </Stack>
           )}
-        </div>
-      </section>
-    </main>
+
+          {error && <Alert severity="error">{error}</Alert>}
+
+          {!isLoading && !error && (
+            <TableContainer
+              component={Paper}
+              variant="outlined"
+              sx={{ borderRadius: 2, maxHeight: 680, borderColor: alpha("#6B8CA8", 0.2), backgroundColor: "#FFFFFF" }}
+            >
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Position</TableCell>
+                    <TableCell>ASIN</TableCell>
+                    <TableCell sx={{ minWidth: 260 }}>Title</TableCell>
+                    <TableCell sortDirection={sortKey === "price" ? sortDirection : false}>
+                      <TableSortLabel
+                        active={sortKey === "price"}
+                        direction={sortKey === "price" ? sortDirection : "asc"}
+                        onClick={() => handleSortClick("price")}
+                        sx={{
+                          "& .MuiTableSortLabel-icon": {
+                            opacity: 1,
+                          },
+                        }}
+                      >
+                        Price
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell sortDirection={sortKey === "is_prime" ? sortDirection : false}>
+                      <TableSortLabel
+                        active={sortKey === "is_prime"}
+                        direction={sortKey === "is_prime" ? sortDirection : "asc"}
+                        onClick={() => handleSortClick("is_prime")}
+                        sx={{
+                          "& .MuiTableSortLabel-icon": {
+                            opacity: 1,
+                          },
+                        }}
+                      >
+                        Prime
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell sortDirection={sortKey === "is_sponsored" ? sortDirection : false}>
+                      <TableSortLabel
+                        active={sortKey === "is_sponsored"}
+                        direction={sortKey === "is_sponsored" ? sortDirection : "asc"}
+                        onClick={() => handleSortClick("is_sponsored")}
+                        sx={{
+                          "& .MuiTableSortLabel-icon": {
+                            opacity: 1,
+                          },
+                        }}
+                      >
+                        Sponsored
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 220 }}>Delivery</TableCell>
+                    <TableCell sx={{ minWidth: 300 }}>Description</TableCell>
+                    <TableCell sx={{ minWidth: 320 }}>Product Details</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedProducts.map((product) => (
+                    <TableRow
+                      key={product.asin}
+                      hover
+                      sx={{
+                        verticalAlign: "top",
+                        "&:hover": { backgroundColor: alpha("#12BFB3", 0.06) },
+                      }}
+                    >
+                      <TableCell>{product.pos}</TableCell>
+                      <TableCell>{product.asin}</TableCell>
+                      <TableCell>{product.title ?? "-"}</TableCell>
+                      <TableCell>{formatPrice(product.price)}</TableCell>
+                      <TableCell>{product.is_prime === null ? "-" : product.is_prime ? "Yes" : "No"}</TableCell>
+                      <TableCell>{product.is_sponsored === null ? "-" : product.is_sponsored ? "Yes" : "No"}</TableCell>
+                      <TableCell>{renderStructuredValue(product.delivery)}</TableCell>
+                      <TableCell>{renderStructuredValue(product.description)}</TableCell>
+                      <TableCell>{renderStructuredValue(product.product_details)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+            </Stack>
+          </Paper>
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }
