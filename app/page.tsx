@@ -10,6 +10,8 @@ type ProductRow = {
   is_prime: boolean | null;
   is_sponsored: boolean | null;
   delivery: unknown;
+  description: unknown;
+  product_details: unknown;
 };
 
 type ScrapeData = {
@@ -22,17 +24,53 @@ type SettingsData = {
   default_geo_location: string;
 };
 
-function formatDelivery(value: unknown): string {
-  if (!value) return "-";
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map((item) => JSON.stringify(item)).join(" | ");
-  return JSON.stringify(value);
-}
+type SortKey = "price" | "is_prime" | "is_sponsored";
+type SortDirection = "asc" | "desc";
 
 function formatPrice(value: number | string | null): string {
   if (value === null || value === undefined) return "-";
   if (typeof value === "number") return `$${value.toFixed(2)}`;
   return value;
+}
+
+function getPriceSortValue(value: number | string | null): number | null {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return null;
+
+  const parsed = Number(value.replace(/[^\d.]/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function renderStructuredValue(value: unknown) {
+  if (value === null || value === undefined) return <span>-</span>;
+
+  if (typeof value === "string") {
+    if (value.length <= 180) {
+      return <span className="whitespace-pre-wrap">{value}</span>;
+    }
+
+    return (
+      <details>
+        <summary className="cursor-pointer opacity-80">View text</summary>
+        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded border border-foreground/20 p-2 text-xs">
+          {value}
+        </pre>
+      </details>
+    );
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return <span>{String(value)}</span>;
+  }
+
+  return (
+    <details>
+      <summary className="cursor-pointer opacity-80">View JSON</summary>
+      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded border border-foreground/20 p-2 text-xs">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    </details>
+  );
 }
 
 function Spinner() {
@@ -53,6 +91,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
   const [isSavingGeo, setIsSavingGeo] = useState(false);
+  const [isDownloadingMarkdown, setIsDownloadingMarkdown] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("price");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [error, setError] = useState<string | null>(null);
 
   const currentGeoLocation = settings ? (settings.geo_location ?? "null") : "90210";
@@ -152,6 +193,48 @@ export default function Home() {
     return JSON.stringify(data, null, 2);
   }, [data]);
 
+  const sortedProducts = useMemo(() => {
+    const products = [...(data?.products ?? [])];
+
+    products.sort((a, b) => {
+      if (sortKey === "price") {
+        const aValue = getPriceSortValue(a.price);
+        const bValue = getPriceSortValue(b.price);
+        if (aValue === null && bValue === null) return 0;
+        if (aValue === null) return 1;
+        if (bValue === null) return -1;
+        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+      }
+
+      const aBool = a[sortKey];
+      const bBool = b[sortKey];
+      if (aBool === bBool) return 0;
+      if (aBool === null) return 1;
+      if (bBool === null) return -1;
+
+      const aValue = aBool ? 1 : 0;
+      const bValue = bBool ? 1 : 0;
+      return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+    });
+
+    return products;
+  }, [data?.products, sortDirection, sortKey]);
+
+  function handleSortClick(nextKey: SortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(nextKey);
+    setSortDirection("asc");
+  }
+
+  function sortIndicator(key: SortKey): string {
+    if (sortKey !== key) return "↕";
+    return sortDirection === "asc" ? "↑" : "↓";
+  }
+
   function downloadJson() {
     if (!data) return;
     const blob = new Blob([exportJson], { type: "application/json" });
@@ -159,9 +242,38 @@ export default function Home() {
     const anchor = document.createElement("a");
     const timestamp = data.last_updated.replace(/[:.]/g, "-");
     anchor.href = url;
-    anchor.download = `tecnovaai_iphone_top5_${timestamp}.json`;
+    anchor.download = `tecnovaai_iphone_top100_${timestamp}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadMarkdownFile() {
+    try {
+      setIsDownloadingMarkdown(true);
+      setError(null);
+
+      const response = await fetch("/api/scrape/markdown", { cache: "no-store" });
+
+      if (!response.ok) {
+        const body = (await response.json()) as { error?: string };
+        const errorMessage = body?.error;
+        throw new Error(errorMessage || "Failed to load markdown output.");
+      }
+
+      const markdown = await response.text();
+      const blob = new Blob([markdown], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      anchor.href = url;
+      anchor.download = `tecnovaai_iphone_markdown_${timestamp}.md`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setIsDownloadingMarkdown(false);
+    }
   }
 
   if (!mounted) return null;
@@ -173,9 +285,12 @@ export default function Home() {
         <p className="mt-1 text-sm opacity-80">Last updated: {data?.last_updated ?? "-"}</p>
 
         <div className="mt-4 rounded-md border border-foreground/20 p-4 text-sm">
+          <p className="mb-3">
+            Amazon marketplace: <strong>amazon.com</strong>
+          </p>
           <div className="flex flex-wrap items-center gap-3">
             <span>
-              Geo-location: <strong>{currentGeoLocation}</strong>
+              Postcode (Geo-location): <strong>{currentGeoLocation}</strong>
             </span>
             {!isEditingGeo ? (
               <button
@@ -231,6 +346,14 @@ export default function Home() {
           >
             Download JSON
           </button>
+          <button
+            onClick={() => void downloadMarkdownFile()}
+            disabled={isDownloadingMarkdown}
+            className="flex cursor-pointer items-center gap-2 rounded-md border border-foreground/30 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isDownloadingMarkdown && <Spinner />}
+            {isDownloadingMarkdown ? "Downloading…" : "Download Markdown"}
+          </button>
         </div>
 
         <div className="mt-6">
@@ -243,23 +366,53 @@ export default function Home() {
                   <tr className="border-b border-foreground/20 text-left">
                     <th className="px-3 py-2 font-medium">Position</th>
                     <th className="px-3 py-2 font-medium">ASIN</th>
-                    <th className="px-3 py-2 font-medium">Price</th>
-                    <th className="px-3 py-2 font-medium">Prime</th>
-                    <th className="px-3 py-2 font-medium">Sponsored</th>
+                    <th className="px-3 py-2 font-medium">Title</th>
+                    <th className="px-3 py-2 font-medium">
+                      <button
+                        onClick={() => handleSortClick("price")}
+                        className="cursor-pointer"
+                        type="button"
+                      >
+                        Price {sortIndicator("price")}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      <button
+                        onClick={() => handleSortClick("is_prime")}
+                        className="cursor-pointer"
+                        type="button"
+                      >
+                        Prime {sortIndicator("is_prime")}
+                      </button>
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      <button
+                        onClick={() => handleSortClick("is_sponsored")}
+                        className="cursor-pointer"
+                        type="button"
+                      >
+                        Sponsored {sortIndicator("is_sponsored")}
+                      </button>
+                    </th>
                     <th className="px-3 py-2 font-medium">Delivery</th>
+                    <th className="px-3 py-2 font-medium">Description</th>
+                    <th className="px-3 py-2 font-medium">Product Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(data?.products ?? []).map((product) => (
-                    <tr key={product.asin} className="border-b border-foreground/10">
+                  {sortedProducts.map((product) => (
+                    <tr key={product.asin} className="border-b border-foreground/10 align-top">
                       <td className="px-3 py-2">{product.pos}</td>
                       <td className="px-3 py-2">{product.asin}</td>
+                      <td className="px-3 py-2 min-w-[260px]">{product.title ?? "-"}</td>
                       <td className="px-3 py-2">{formatPrice(product.price)}</td>
                       <td className="px-3 py-2">{product.is_prime === null ? "-" : product.is_prime ? "Yes" : "No"}</td>
                       <td className="px-3 py-2">
                         {product.is_sponsored === null ? "-" : product.is_sponsored ? "Yes" : "No"}
                       </td>
-                      <td className="px-3 py-2">{formatDelivery(product.delivery)}</td>
+                      <td className="px-3 py-2 min-w-[220px]">{renderStructuredValue(product.delivery)}</td>
+                      <td className="px-3 py-2 min-w-[300px]">{renderStructuredValue(product.description)}</td>
+                      <td className="px-3 py-2 min-w-[320px]">{renderStructuredValue(product.product_details)}</td>
                     </tr>
                   ))}
                 </tbody>

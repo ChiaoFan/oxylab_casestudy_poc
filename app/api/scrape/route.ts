@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { buildGeoContext, readGeoLocationSetting } from "./lib/settings";
+import { readGeoLocationSetting } from "./lib/settings";
 
 type OxylabsSearchItem = {
   asin?: string;
@@ -24,16 +24,28 @@ type ScrapedProduct = {
 
 type ScrapeResponse = {
   last_updated: string;
+  run_config: {
+    query: string;
+    geo_location: string | null;
+  };
   products: ScrapedProduct[];
+};
+
+type ProductMarkdown = {
+  asin: string;
+  pos: number;
+  markdown: string | null;
 };
 
 const OXYLABS_ENDPOINT = "https://data.oxylabs.io/v1/queries";
 const SEARCH_QUERY = "iphone";
 const MAX_PRODUCTS = 3;
 const POLL_INTERVAL_MS = 1500;
-const POLL_TIMEOUT_MS = 180000;
+const POLL_TIMEOUT_MS = 600000;
+const ESTIMATED_PRODUCTS_PER_SEARCH_PAGE = 15;
 const OUTPUT_DIR = join(process.cwd(), "output");
 const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_top100_latest.json");
+const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "tecnovaai_iphone_markdown_latest.md");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -79,7 +91,7 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
   }
 
   if (response.status === 202 && isRecord(parsedBody) && typeof parsedBody.id === "string") {
-    return pollQueryResults(parsedBody.id);
+    return pollQueryResults(parsedBody.id, getRequestedResultTypes(payload));
   }
 
   if (!response.ok) {
@@ -90,18 +102,29 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
   return parsedBody;
 }
 
+function getRequestedResultTypes(payload: Record<string, unknown>): string[] {
+  const resultTypes = new Set<string>();
+
+  if (payload.parse === true) resultTypes.add("parsed");
+  if (payload.markdown === true) resultTypes.add("markdown");
+
+  if (resultTypes.size === 0) resultTypes.add("parsed");
+  return Array.from(resultTypes);
+}
+
 
 /**
 Integration: Push-Pull (Asynchronous)
 Initiates scrapes on-demand via POST and retrieves results via GET
 This keeps my server resources free because I don't have to maintain an active connection during the entire scraping lifecycle
  **/
-async function pollQueryResults(queryId: string) {
+async function pollQueryResults(queryId: string, resultTypes: string[] = ["parsed"]) {
   const { user, pass } = getCredentials();
   const startedAt = Date.now();
+  const typesQuery = encodeURIComponent(resultTypes.join(","));
 
   while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
-    const response = await fetch(`${OXYLABS_ENDPOINT}/${queryId}/results?type=parsed`, {
+    const response = await fetch(`${OXYLABS_ENDPOINT}/${queryId}/results?type=${typesQuery}`, {
       method: "GET",
       headers: {
         Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`,
@@ -138,27 +161,33 @@ async function pollQueryResults(queryId: string) {
   throw new Error(`Oxylabs polling timed out for query ${queryId}.`);
 }
 
-function extractResultsContent(oxylabsResponse: unknown): unknown {
-  if (!isRecord(oxylabsResponse)) return null;
-  const results = oxylabsResponse.results;
-  if (!Array.isArray(results) || results.length === 0) return null;
-  const first = results[0];
-  if (!isRecord(first)) return null;
-  return first.content ?? null;
-}
-
-function extractAllResultsContents(oxylabsResponse: unknown): unknown[] {
+function extractResultContentsByType(oxylabsResponse: unknown, type: string): unknown[] {
   if (!isRecord(oxylabsResponse)) return [];
   const results = oxylabsResponse.results;
   if (!Array.isArray(results) || results.length === 0) return [];
 
   const contents: unknown[] = [];
   for (const result of results) {
-    if (!isRecord(result) || result.content == null) continue;
+    if (!isRecord(result)) continue;
+    if (result.type !== type || result.content == null) continue;
     contents.push(result.content);
   }
 
   return contents;
+}
+
+function extractFirstResultContentByType(oxylabsResponse: unknown, type: string): unknown {
+  const contents = extractResultContentsByType(oxylabsResponse, type);
+  return contents.length > 0 ? contents[0] : null;
+}
+
+function extractFirstMarkdownContent(oxylabsResponse: unknown): string | null {
+  const content = extractFirstResultContentByType(oxylabsResponse, "markdown");
+  return typeof content === "string" ? content : null;
+}
+
+function extractResultsContent(oxylabsResponse: unknown): unknown {
+  return extractFirstResultContentByType(oxylabsResponse, "parsed");
 }
 
 function collectSearchRows(node: unknown, rows: OxylabsSearchItem[] = []): OxylabsSearchItem[] {
@@ -263,18 +292,18 @@ function mapDetailContent(content: unknown) {
 }
 
 async function fetchSearchProducts(geoLocation: string | null) {
+  const pagesToRequest = Math.max(1, Math.ceil(MAX_PRODUCTS / ESTIMATED_PRODUCTS_PER_SEARCH_PAGE));
   const payload = {
     source: "amazon_search",
+    domain: "com",
     query: SEARCH_QUERY,
     parse: true,
-    pages: 7,
-    render: "html",
-    domain: "com",
-    geo_location: geoLocation
+    pages: pagesToRequest,
+    ...(geoLocation ? { geo_location: geoLocation } : {}),
   };
 
   const response = await oxylabsRequest(payload);
-  const contents = extractAllResultsContents(response);
+  const contents = extractResultContentsByType(response, "parsed");
   const rows = contents.flatMap((content) => collectSearchRows(content));
   const uniqueRows = uniqueTopProducts(rows);
 
@@ -289,17 +318,25 @@ async function fetchSearchProducts(geoLocation: string | null) {
   return uniqueRows;
 }
 
-async function fetchProductDetails(asin: string) {
+async function fetchProductDetails(asin: string, geoLocation: string | null) {
   const payload = {
     source: "amazon_product",
+    domain: "com",
     query: asin,
     parse: true,
-    render: "html"
+    markdown: true,
+    ...(geoLocation ? { geo_location: geoLocation } : {}),
   };
+
   console.log("[amazon_product payload]", payload);
   const response = await oxylabsRequest(payload);
-  const content = extractResultsContent(response);
-  return mapDetailContent(content);
+  const parsedContent = extractResultsContent(response);
+  const markdown = extractFirstMarkdownContent(response);
+
+  return {
+    ...mapDetailContent(parsedContent),
+    markdown,
+  };
 }
 
 async function persistOutput(payload: ScrapeResponse) {
@@ -311,6 +348,42 @@ async function persistOutput(payload: ScrapeResponse) {
 
   await writeFile(timestampedFile, data, "utf8");
   await writeFile(LATEST_OUTPUT_FILE, data, "utf8");
+}
+
+function buildMarkdownDocument(
+  lastUpdated: string,
+  runConfig: ScrapeResponse["run_config"],
+  products: ProductMarkdown[]
+): string {
+  const sections = products.map((product) => {
+    const content = product.markdown?.trim() || "No markdown content available.";
+    return [`## ${product.pos}. ${product.asin}`, "", content].join("\n");
+  });
+
+  return [
+    "# TechNovaAI iPhone Markdown Output",
+    "",
+    `Last updated: ${lastUpdated}`,
+    `Query: ${runConfig.query}`,
+    `Geo-location: ${runConfig.geo_location ?? "null"}`,
+    "",
+    ...sections,
+  ].join("\n\n");
+}
+
+async function persistMarkdownOutput(
+  lastUpdated: string,
+  runConfig: ScrapeResponse["run_config"],
+  products: ProductMarkdown[]
+) {
+  await mkdir(OUTPUT_DIR, { recursive: true });
+
+  const timestamp = lastUpdated.replace(/[:.]/g, "-");
+  const timestampedFile = join(OUTPUT_DIR, `tecnovaai_iphone_markdown_${timestamp}.md`);
+  const data = `${buildMarkdownDocument(lastUpdated, runConfig, products)}\n`;
+
+  await writeFile(timestampedFile, data, "utf8");
+  await writeFile(LATEST_MARKDOWN_OUTPUT_FILE, data, "utf8");
 }
 
 async function readLatestOutput() {
@@ -329,12 +402,15 @@ async function scrapeAndPersist() {
   const found = await fetchSearchProducts(geoLocation);
 
   const products: ScrapedProduct[] = [];
+  const markdownProducts: ProductMarkdown[] = [];
   for (const row of found) {
     if (!row.asin) continue;
-    const details = await fetchProductDetails(row.asin);
+    const details = await fetchProductDetails(row.asin, geoLocation);
+    const pos = row.pos ?? products.length + 1;
+
     products.push({
       asin: row.asin,
-      pos: row.pos ?? products.length + 1,
+      pos,
       title: details.title,
       is_prime: details.is_prime ?? row.is_prime ?? null,
       is_sponsored: row.is_sponsored ?? null,
@@ -343,14 +419,25 @@ async function scrapeAndPersist() {
       description: details.description,
       product_details: details.product_details,
     });
+
+    markdownProducts.push({
+      asin: row.asin,
+      pos,
+      markdown: details.markdown,
+    });
   }
 
   const body: ScrapeResponse = {
     last_updated: new Date().toISOString(),
+    run_config: {
+      query: SEARCH_QUERY,
+      geo_location: geoLocation,
+    },
     products,
   };
 
   await persistOutput(body);
+  await persistMarkdownOutput(body.last_updated, body.run_config, markdownProducts);
   return body;
 }
 
