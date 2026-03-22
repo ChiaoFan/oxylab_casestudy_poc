@@ -166,22 +166,22 @@ export async function writeGeoLocationSetting(value: string | null) {
   await writeAllSettings({ ...existing, geo_location: value });
 }
 
-export async function readOxylabsSchedulerId() {
+async function readOxylabsSchedulerId() {
   const settings = await readAllSettings();
   return settings.oxylabsSchedulerId;
 }
 
-export async function writeOxylabsSchedulerId(value: string | null) {
+async function writeOxylabsSchedulerId(value: string | null) {
   const existing = await readAllSettings();
   await writeAllSettings({ ...existing, oxylabsSchedulerId: value });
 }
 
-export async function readOxylabsSchedulerLastProcessedRunId() {
+async function readOxylabsSchedulerLastProcessedRunId() {
   const settings = await readAllSettings();
   return settings.oxylabsSchedulerLastProcessedRunId;
 }
 
-export async function writeOxylabsSchedulerLastProcessedRunId(value: string | null) {
+async function writeOxylabsSchedulerLastProcessedRunId(value: string | null) {
   const existing = await readAllSettings();
   await writeAllSettings({ ...existing, oxylabsSchedulerLastProcessedRunId: value });
 }
@@ -254,7 +254,7 @@ function normalizeOxylabsScheduleResponse(parsedBody: unknown, bodyText: string)
   };
 }
 
-export async function createOxylabsSchedule() {
+async function createOxylabsSchedule() {
   const geoLocation = await readGeoLocationSetting();
   const payload = {
     cron: OXYLABS_SCHEDULE_CRON,
@@ -279,12 +279,12 @@ export async function createOxylabsSchedule() {
   return normalizeOxylabsScheduleResponse(parsedBody, bodyText);
 }
 
-export async function getOxylabsSchedule(scheduleId: string) {
+async function getOxylabsSchedule(scheduleId: string) {
   const { parsedBody, bodyText } = await oxylabsSchedulesRequest(`/${scheduleId}`, { method: "GET" });
   return normalizeOxylabsScheduleResponse(parsedBody, bodyText);
 }
 
-export async function setOxylabsScheduleState(scheduleId: string, active: boolean) {
+async function setOxylabsScheduleState(scheduleId: string, active: boolean) {
   await oxylabsSchedulesRequest(`/${scheduleId}/state`, {
     method: "PUT",
     body: JSON.stringify({ active }),
@@ -293,7 +293,7 @@ export async function setOxylabsScheduleState(scheduleId: string, active: boolea
   return getOxylabsSchedule(scheduleId);
 }
 
-export async function getOxylabsScheduleRuns(scheduleId: string): Promise<OxylabsScheduleRun[]> {
+async function getOxylabsScheduleRuns(scheduleId: string): Promise<OxylabsScheduleRun[]> {
   const { parsedBody } = await oxylabsSchedulesRequest(`/${scheduleId}/runs`, { method: "GET" });
   if (!isRecord(parsedBody) || !Array.isArray(parsedBody.runs)) {
     return [];
@@ -328,12 +328,12 @@ export async function getOxylabsScheduleRuns(scheduleId: string): Promise<Oxylab
   });
 }
 
-export async function getOxylabsQueryResults(queryId: string, resultTypes: string[] = ["parsed"]) {
+async function getOxylabsQueryResults(queryId: string, resultTypes: string[] = ["parsed"]) {
   const typesQuery = encodeURIComponent(resultTypes.join(","));
   return oxylabsQueriesRequest(`/${queryId}/results?type=${typesQuery}`);
 }
 
-export async function syncOxylabsSchedulerRuns() {
+async function syncOxylabsSchedulerRuns() {
   const scheduleId = await readOxylabsSchedulerId();
   if (!scheduleId || oxylabsSyncState.isRunning) {
     return {
@@ -395,31 +395,19 @@ export async function getOxylabsSchedulerStatus() {
   const scheduleId = await readOxylabsSchedulerId();
   if (!scheduleId) {
     return {
-      exists: false,
       scheduleId: null,
       active: null,
-      cron: null,
-      endTime: null,
       nextRunAt: null,
-      itemsCount: null,
-      lastProcessedRunId: null,
-      syncedNewRun: false,
     };
   }
 
   try {
     const schedule = await getOxylabsSchedule(scheduleId);
-    const syncState = await syncOxylabsSchedulerRuns();
+    await syncOxylabsSchedulerRuns();
     return {
-      exists: true,
       scheduleId: schedule.scheduleId,
       active: schedule.active,
-      cron: schedule.cron,
-      endTime: schedule.endTime,
       nextRunAt: schedule.nextRunAt,
-      itemsCount: schedule.itemsCount,
-      lastProcessedRunId: syncState.lastProcessedRunId,
-      syncedNewRun: syncState.syncedNewRun,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -427,15 +415,9 @@ export async function getOxylabsSchedulerStatus() {
       await writeOxylabsSchedulerId(null);
       await writeOxylabsSchedulerLastProcessedRunId(null);
       return {
-        exists: false,
         scheduleId: null,
         active: null,
-        cron: null,
-        endTime: null,
         nextRunAt: null,
-        itemsCount: null,
-        lastProcessedRunId: null,
-        syncedNewRun: false,
       };
     }
     throw error;

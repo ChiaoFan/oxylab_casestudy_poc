@@ -45,13 +45,9 @@ type SettingsData = {
 };
 
 type OxylabsSchedulerStatus = {
-  exists: boolean;
   scheduleId: string | null;
   active: boolean | null;
-  cron: string | null;
-  endTime: string | null;
   nextRunAt: string | null;
-  itemsCount: number | null;
 };
 
 type SortKey = "price" | "is_prime" | "is_sponsored";
@@ -501,7 +497,7 @@ export default function Home() {
               disabled={isScraping}
               startIcon={isScraping ? <CircularProgress size={14} /> : undefined}
             >
-              {isScraping ? "Scraping…" : "Manually Run Scrape"}
+              {isScraping ? "Scraping…" : "Run New Scrape"}
             </Button>
 
             <Button
