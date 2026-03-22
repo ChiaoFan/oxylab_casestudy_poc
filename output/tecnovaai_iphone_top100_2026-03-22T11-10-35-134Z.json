@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-22T09:33:12.480Z",
+  "last_updated": "2026-03-22T11:10:35.134Z",
   "run_config": {
     "query": "iphone",
     "geo_location": "90211"
@@ -44,7 +44,7 @@
         "battery_capacity": "4970",
         "customer_reviews": "4.5 4.5 out of 5 stars (453) 4.5 out of 5 stars",
         "whats_in_the_box": "Cell Phone, USB Cable, Warranty Booklet",
-        "best_sellers_rank": "#1,423 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #31 in Cell Phones",
+        "best_sellers_rank": "#1,424 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #31 in Cell Phones",
         "item_model_number": "GLBW0",
         "display_technology": "OLED",
         "product_dimensions": "6 x 2.8 x 0.3 inches",
@@ -61,101 +61,18 @@
       }
     },
     {
-      "asin": "B09LNW3CY2",
-      "pos": 2,
-      "title": "Apple iPhone 13, 128GB, Midnight - Unlocked (Renewed)",
-      "is_prime": false,
-      "is_sponsored": false,
-      "price": 286.34,
-      "delivery": [
-        {
-          "date": {
-            "by": "Friday, March 27"
-          },
-          "type": "FREE delivery"
-        },
-        {
-          "date": {
-            "by": "Today, 10 AM - 3 PM"
-          },
-          "type": "Prime members"
-        }
-      ],
-      "description": "The iPhone 13 features a 6.1-inch (155 mm) display with Super Retina XDR OLED technology at a resolution of 2532×1170 pixels and a pixel density of about 460 PPI with a refresh rate of 60 Hz and Dolby Vision HDR. Additional features include a dual-camera system, consisting of a 12MP F1.6 wide-angle and another 12MP F2.4 ultra-wide camera with True Tone flash and lens correction. Both rear cameras have larger sensors with improved light sensitivity and Dolby Vision HDR video recording, but only digital zoom and no optical zoom. The front-facing ultra-wide camera is a 12MP F2.2 one. The iPhone 13 video recording supports 4K videos at 60fps as well as 1080p video at up to 240fps. The iPhone 13 model is available in six colors: Midnight, Starlight, Product Red, Blue, Pink, and Green.",
-      "product_details": {
-        "upc": "753575964559",
-        "asin": "B09LNW3CY2",
-        "brand": "Apple",
-        "color": "Midnight",
-        "frame_rate": "60 fps",
-        "model_year": "2021",
-        "resolution": "1920 x 1080",
-        "form_factor": "Bar",
-        "item_weight": "0.38 Pounds",
-        "screen_size": "6.1 Inches",
-        "display_type": "OLED",
-        "manufacturer": "Apple Computer",
-        "model_series": "2021",
-        "refresh_rate": "60 Hz",
-        "battery_power": "3600 Amp Hours",
-        "sim_card_size": "Nano",
-        "built_in_media": "Apple iPhone and Charging Cable",
-        "connector_type": "Lightning",
-        "shooting_modes": "High Dynamic Range",
-        "item_dimensions": "7 x 4 x 5 inches",
-        "processor_speed": "2.02 GHz",
-        "battery_capacity": "3240 Milliamp Hours",
-        "customer_reviews": "4.1 4.1 out of 5 stars (21,508) 4.1 out of 5 stars",
-        "operating_system": "iOS 16",
-        "processor_series": "A10",
-        "best_sellers_rank": "#175 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #1 in Renewed Smartphones #1 in Cell Phones",
-        "wireless_provider": "Unlocked for All Carriers",
-        "camera_description": "Front, Rear",
-        "additional_features": "Built-In GPS",
-        "battery_description": "Lithium-Ion",
-        "cellular_technology": "5G",
-        "sim_card_slot_count": "Single SIM",
-        "battery_average_life": "18 Hours",
-        "ram_memory_installed": "8 GB",
-        "warranty_description": "1 year Amazon Renewed",
-        "display_pixel_density": "460 Pixels Per Inch (PPI)",
-        "human_interface_input": "Touchscreen",
-        "water_resistance_level": "Not Water Resistant",
-        "connectivity_technology": "Bluetooth, NFC, Wi-Fi",
-        "memory_storage_capacity": "128 GB",
-        "number_of_front_cameras": "1",
-        "video_capture_resolution": "4k",
-        "specific_uses_for_product": "Entertainment",
-        "biometric_security_feature": "Face Recognition",
-        "display_resolution_maximum": "2532 x 1170 Pixels",
-        "effective_video_resolution": "2160 Pixels",
-        "wireless_network_technology": "GSM, LTE",
-        "gps_geotagging_functionality": "True",
-        "front_photo_sensor_resolution": "12 MP",
-        "number_of_rear_facing_cameras": "2",
-        "supported_satellite_navigation_system": "GPS",
-        "rear_facing_camera_photo_sensor_resolution": "12 MP"
-      }
-    },
-    {
       "asin": "B0CMPMY9ZZ",
-      "pos": 3,
+      "pos": 2,
       "title": "Apple iPhone 15, 128GB, Black - Unlocked (Renewed)",
-      "is_prime": false,
+      "is_prime": true,
       "is_sponsored": false,
-      "price": 386.06,
+      "price": 389.49,
       "delivery": [
-        {
-          "date": {
-            "by": "Wednesday, March 25"
-          },
-          "type": "FREE delivery"
-        },
         {
           "date": {
             "by": "Tuesday, March 24"
           },
-          "type": "Or fastest delivery"
+          "type": "FREE delivery"
         }
       ],
       "description": "Apple iPhone 15, 128GB, Black - Unlocked (Renewed)",
@@ -172,7 +89,7 @@
         "manufacturer": "Apple Computer",
         "phone_talk_time": "20 Hours",
         "battery_capacity": "3349 Milliamp Hours",
-        "customer_reviews": "4.1 4.1 out of 5 stars (4,976) 4.1 out of 5 stars",
+        "customer_reviews": "4.1 4.1 out of 5 stars (4,977) 4.1 out of 5 stars",
         "special_features": "Always On Display, Built-In GPS, Dual SIM, Stereo Speakers, Wireless Charging",
         "whats_in_the_box": "Apple iPhone 15, USB Cable",
         "best_sellers_rank": "#266 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #2 in Renewed Smartphones #3 in Cell Phones",
@@ -189,6 +106,58 @@
         "ram_memory_installed_size": "8 GB",
         "standing_screen_display_size": "6.1 Inches",
         "wireless_communication_technologies": "Cellular"
+      }
+    },
+    {
+      "asin": "B0B5FDB92L",
+      "pos": 3,
+      "title": "Apple iPhone 13, 128GB, Green - Unlocked (Renewed)",
+      "is_prime": false,
+      "is_sponsored": false,
+      "price": 285.09,
+      "delivery": [
+        {
+          "date": {
+            "by": "Friday, March 27"
+          },
+          "type": "FREE delivery"
+        },
+        {
+          "date": {
+            "by": "Today, 5 PM - 10 PM"
+          },
+          "type": "Prime members"
+        }
+      ],
+      "description": "The iPhone 13 features a 6.1-inch (155 mm) display with Super Retina XDR OLED technology at a resolution of 2532×1170 pixels and a pixel density of about 460 PPI with a refresh rate of 60 Hz and Dolby Vision HDR. Additional features include a dual-camera system, consisting of a 12MP F1.6 wide-angle and another 12MP F2.4 ultra-wide camera with True Tone flash and lens correction. Both rear cameras have larger sensors with improved light sensitivity and Dolby Vision HDR video recording, but only digital zoom and no optical zoom. The front-facing ultra-wide camera is a 12MP F2.2 one. The iPhone 13 video recording supports 4K videos at 60fps as well as 1080p video at up to 240fps. The iPhone 13 model is available in six colors: Midnight, Starlight, Product Red, Blue, Pink, and Green.",
+      "product_details": {
+        "os": "iOS 16",
+        "gps": "True",
+        "ram": "4 GB",
+        "asin": "B0B5FDB92L",
+        "color": "Green",
+        "weight": "0.38 Pounds",
+        "batteries": "1 D batteries required. (included)",
+        "form_factor": "Slate",
+        "item_weight": "6.1 ounces",
+        "manufacturer": "Apple Computer",
+        "battery_capacity": "3227 Milliamp Hours",
+        "customer_reviews": "4.1 4.1 out of 5 stars (21,508) 4.1 out of 5 stars",
+        "special_features": "Built-In GPS",
+        "whats_in_the_box": "USB Cable, iPhone",
+        "best_sellers_rank": "#175 in Cell Phones & Accessories (See Top 100 in Cell Phones & Accessories) #1 in Renewed Smartphones #1 in Cell Phones",
+        "item_model_number": "iPhone 13",
+        "product_dimensions": "7 x 4 x 5 inches",
+        "scanner_resolution": "2532 x 1170",
+        "battery_power_rating": "3600 Amp Hours",
+        "date_first_available": "June 29, 2022",
+        "human_interface_input": "Touchscreen",
+        "other_camera_features": "Front, Rear",
+        "other_display_features": "Wireless",
+        "memory_storage_capacity": "128 GB",
+        "connectivity_technologies": "Wi-Fi",
+        "ram_memory_installed_size": "4 GB",
+        "standing_screen_display_size": "6.1 Inches"
       }
     }
   ]

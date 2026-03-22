@@ -1,3 +1,4 @@
 {
-  "geo_location": "90211"
+  "geo_location": "90211",
+  "autoScrapingEnabled": true
 }

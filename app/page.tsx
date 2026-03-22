@@ -44,6 +44,16 @@ type SettingsData = {
   default_geo_location: string;
 };
 
+type SchedulerStatus = {
+  enabled: boolean;
+  isInitialized: boolean;
+  isRunning: boolean;
+  lastRunTime: string | null;
+  nextRunTime: string | null;
+  lastError: string | null;
+  currentTime: string;
+};
+
 type SortKey = "price" | "is_prime" | "is_sponsored";
 type SortDirection = "asc" | "desc";
 
@@ -96,6 +106,23 @@ function formatPrice(value: number | string | null): string {
   if (value === null || value === undefined) return "-";
   if (typeof value === "number") return `$${value.toFixed(2)}`;
   return value;
+}
+
+function formatLocalDateTime(isoString: string | null): string {
+  if (!isoString) return "-";
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return isoString;
+  }
 }
 
 function getPriceSortValue(value: number | string | null): number | null {
@@ -183,6 +210,9 @@ export default function Home() {
   const [sortKey, setSortKey] = useState<SortKey>("price");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [error, setError] = useState<string | null>(null);
+  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
+  const [isTogglingScheduler, setIsTogglingScheduler] = useState(false);
+  const [timeUntilNextRun, setTimeUntilNextRun] = useState<string | null>(null);
 
   const currentGeoLocation = settings ? (settings.geo_location ?? "null") : "90210";
 
@@ -270,11 +300,102 @@ export default function Home() {
     }
   }
 
+  async function loadSchedulerStatus() {
+    try {
+      const response = await fetch("/api/scrape/scheduler/status", { cache: "no-store" });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to load scheduler status.");
+      }
+
+      setSchedulerStatus(body as SchedulerStatus);
+    } catch (err) {
+      console.error("Error loading scheduler status:", err);
+    }
+  }
+
+  async function enableScheduler() {
+    try {
+      setIsTogglingScheduler(true);
+      setError(null);
+
+      const response = await fetch("/api/scrape/scheduler/enable", { method: "POST", cache: "no-store" });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to enable scheduler.");
+      }
+
+      await loadSchedulerStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setIsTogglingScheduler(false);
+    }
+  }
+
+  async function disableScheduler() {
+    try {
+      setIsTogglingScheduler(true);
+      setError(null);
+
+      const response = await fetch("/api/scrape/scheduler/disable", { method: "POST", cache: "no-store" });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body?.error || "Failed to disable scheduler.");
+      }
+
+      await loadSchedulerStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setIsTogglingScheduler(false);
+    }
+  }
+
   useEffect(() => {
     setMounted(true);
     void loadData();
     void loadSettings();
+
+    // Initialize scheduler on app start
+    fetch("/api/health", { cache: "no-store" }).catch(console.error);
+    void loadSchedulerStatus();
   }, []);
+
+  // Poll scheduler status every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void loadSchedulerStatus();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update countdown timer every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (schedulerStatus?.nextRunTime) {
+        const nextRun = new Date(schedulerStatus.nextRunTime).getTime();
+        const now = new Date().getTime();
+        const diff = nextRun - now;
+
+        if (diff > 0) {
+          const hours = Math.floor(diff / 3600000);
+          const mins = Math.floor((diff % 3600000) / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setTimeUntilNextRun(`${hours}h ${mins}m ${secs}s`);
+        } else {
+          setTimeUntilNextRun("Soon...");
+          void loadSchedulerStatus();
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [schedulerStatus?.nextRunTime]);
 
   const exportJson = useMemo(() => {
     if (!data) return "";
@@ -380,9 +501,85 @@ export default function Home() {
               TechNovaAI Amazon iPhone Monitor
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Last updated: {data?.last_updated ?? "-"}
+              Last updated: {formatLocalDateTime(data?.last_updated ?? null)}
             </Typography>
           </Box>
+
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+            <Button
+              variant="contained"
+              onClick={() => void runScrape()}
+              disabled={isScraping}
+              startIcon={isScraping ? <CircularProgress size={14} /> : undefined}
+            >
+              {isScraping ? "Scraping…" : "Manually Run Scrape"}
+            </Button>
+
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={downloadJson}
+              disabled={!data}
+              sx={{ boxShadow: "0 8px 18px rgba(58, 168, 216, 0.28)" }}
+            >
+              Download JSON
+            </Button>
+
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => void downloadMarkdownFile()}
+              disabled={isDownloadingMarkdown}
+              startIcon={isDownloadingMarkdown ? <CircularProgress size={14} /> : undefined}
+              sx={{ boxShadow: "0 8px 18px rgba(18, 191, 179, 0.28)" }}
+            >
+              {isDownloadingMarkdown ? "Downloading…" : "Download Markdown"}
+            </Button>
+          </Stack>
+
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#12BFB3", 0.3) }}
+          >
+            <Stack spacing={1.5}>
+              <Box>
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>
+                    Hourly Auto-Scraping
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: "block" }}>
+                    {schedulerStatus?.enabled ? "Active - Running at the start of each hour" : "Disabled - Click to enable"}
+                  </Typography>
+                  {schedulerStatus?.enabled && schedulerStatus?.nextRunTime && (
+                    <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: "block", fontWeight: 500 }}>
+                      Next scheduled run: {formatLocalDateTime(schedulerStatus.nextRunTime)}
+                    </Typography>
+                  )}
+                  {schedulerStatus?.enabled && timeUntilNextRun && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: "block" }}>
+                      Next run in: <strong>{timeUntilNextRun}</strong>
+                    </Typography>
+                  )}
+                </Box>
+                <Button
+                  sx={{ mt: 1 }}
+                  variant={schedulerStatus?.enabled ? "outlined" : "contained"}
+                  color={schedulerStatus?.enabled ? "error" : "primary"}
+                  onClick={() => (schedulerStatus?.enabled ? void disableScheduler() : void enableScheduler())}
+                  disabled={isTogglingScheduler}
+                  startIcon={isTogglingScheduler ? <CircularProgress size={14} /> : undefined}
+                >
+                  {isTogglingScheduler ? "..." : schedulerStatus?.enabled ? "Disable" : "Enable"}
+                </Button>
+              </Box>
+
+              {schedulerStatus?.lastError && (
+                <Alert severity="error" sx={{ mt: 1 }}>
+                  Last error: {schedulerStatus.lastError}
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
 
           <Paper
             variant="outlined"
@@ -439,38 +636,6 @@ export default function Home() {
               </Typography>
             </Stack>
           </Paper>
-
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            <Button
-              variant="contained"
-              onClick={() => void runScrape()}
-              disabled={isScraping}
-              startIcon={isScraping ? <CircularProgress size={14} /> : undefined}
-            >
-              {isScraping ? "Scraping…" : "Run New Scrape"}
-            </Button>
-
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={downloadJson}
-              disabled={!data}
-              sx={{ boxShadow: "0 8px 18px rgba(58, 168, 216, 0.28)" }}
-            >
-              Download JSON
-            </Button>
-
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => void downloadMarkdownFile()}
-              disabled={isDownloadingMarkdown}
-              startIcon={isDownloadingMarkdown ? <CircularProgress size={14} /> : undefined}
-              sx={{ boxShadow: "0 8px 18px rgba(18, 191, 179, 0.28)" }}
-            >
-              {isDownloadingMarkdown ? "Downloading…" : "Download Markdown"}
-            </Button>
-          </Stack>
 
           {isLoading && (
             <Stack direction="row" spacing={1} alignItems="center">

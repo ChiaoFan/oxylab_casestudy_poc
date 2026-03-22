@@ -7,6 +7,7 @@ const SETTINGS_FILE = join(OUTPUT_DIR, "tecnovaai_settings.json");
 
 type SettingsPayload = {
   geo_location: string | null;
+  autoScrapingEnabled: boolean;
 };
 
 export function normalizeGeoLocation(value: unknown): string | null {
@@ -51,8 +52,49 @@ export async function readGeoLocationSetting(): Promise<string | null> {
 
 export async function writeGeoLocationSetting(value: string | null) {
   await mkdir(OUTPUT_DIR, { recursive: true });
-  const payload: SettingsPayload = { geo_location: value };
+  const existing = await readAllSettings();
+  const payload: SettingsPayload = {
+    geo_location: value,
+    autoScrapingEnabled: existing.autoScrapingEnabled,
+  };
   await writeFile(SETTINGS_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+export async function readAutoScrapingEnabled(): Promise<boolean> {
+  try {
+    const raw = await readFile(SETTINGS_FILE, "utf8");
+    const parsed = JSON.parse(raw) as Partial<SettingsPayload>;
+    return parsed.autoScrapingEnabled ?? false;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message.includes("ENOENT")) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+export async function writeAutoScrapingEnabled(value: boolean) {
+  await mkdir(OUTPUT_DIR, { recursive: true });
+  const existing = await readAllSettings();
+  const payload: SettingsPayload = {
+    geo_location: existing.geo_location,
+    autoScrapingEnabled: value,
+  };
+  await writeFile(SETTINGS_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+async function readAllSettings(): Promise<SettingsPayload> {
+  try {
+    const raw = await readFile(SETTINGS_FILE, "utf8");
+    return JSON.parse(raw) as SettingsPayload;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message.includes("ENOENT")) {
+      return { geo_location: DEFAULT_GEO_LOCATION, autoScrapingEnabled: false };
+    }
+    throw error;
+  }
 }
 
 export function buildGeoContext(geoLocation: string | null) {

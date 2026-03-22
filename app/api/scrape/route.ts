@@ -441,6 +441,8 @@ async function scrapeAndPersist() {
   return body;
 }
 
+export { scrapeAndPersist };
+
 export async function GET() {
   try {
     const latest = await readLatestOutput();
