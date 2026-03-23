@@ -73,8 +73,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function oxylabsRequest(payload: Record<string, unknown>) {
   const { user, pass } = getCredentials();
   
-  console.log("[oxylabs endpoint]", OXYLABS_ENDPOINT);
-  console.log("[amazon_search payload]", payload);
   const response = await fetch(OXYLABS_ENDPOINT, {
     method: "POST",
     headers: {
@@ -86,7 +84,6 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
   });
 
   const bodyText = await response.text();
-  console.log("--- response body:  ---", bodyText);
   let parsedBody: unknown;
 
   try {
@@ -308,21 +305,13 @@ async function fetchSearchProducts(geoLocation: string | null) {
   };
 
   const response = await oxylabsRequest(payload);
-  return extractTopProductsFromSearchResponse(response, payload.pages);
+  return extractTopProductsFromSearchResponse(response);
 }
 
-function extractTopProductsFromSearchResponse(oxylabsResponse: unknown, pagesRequested?: number) {
+function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
   const contents = extractResultContentsByType(oxylabsResponse, "parsed");
   const rows = contents.flatMap((content) => collectSearchRows(content));
   const uniqueRows = uniqueTopProducts(rows);
-
-  console.log("[amazon_search counts]", {
-    pages_requested: pagesRequested ?? null,
-    page_contents: contents.length,
-    rows_found: rows.length,
-    unique_rows: uniqueRows.length,
-    max_products: MAX_PRODUCTS,
-  });
 
   return uniqueRows;
 }
