@@ -72,7 +72,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function oxylabsRequest(payload: Record<string, unknown>) {
   const { user, pass } = getCredentials();
-  
+
+  // Feature: Oxylabs Web Scraper API authentication via Basic Auth.
   const response = await fetch(OXYLABS_ENDPOINT, {
     method: "POST",
     headers: {
@@ -92,6 +93,8 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
     throw new Error(`Oxylabs returned non-JSON (${response.status}).`);
   }
 
+  // Feature: Push-Pull async workflow.
+  // If Oxylabs accepts async execution (202), poll by query id until results are ready.
   if (response.status === 202 && isRecord(parsedBody) && typeof parsedBody.id === "string") {
     return pollQueryResults(parsedBody.id, getRequestedResultTypes(payload));
   }
@@ -107,6 +110,7 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
 function getRequestedResultTypes(payload: Record<string, unknown>): string[] {
   const resultTypes = new Set<string>();
 
+  // Feature: Request multiple output formats from a single query.
   if (payload.parse === true) resultTypes.add("parsed");
   if (payload.markdown === true) resultTypes.add("markdown");
 
@@ -234,6 +238,7 @@ function uniqueTopProducts(rows: OxylabsSearchItem[]): OxylabsSearchItem[] {
       is_prime: row.is_prime,
       is_sponsored: row.is_sponsored,
     });
+    // Case-study requirement: cap output at top 100 products.
     if (unique.length >= MAX_PRODUCTS) break;
   }
 
@@ -308,6 +313,8 @@ function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
  *  **/
 
 async function fetchProductDetails(asin: string) {
+  // Feature: Product-page scrape request.
+  // Uses amazon_product source and requests both parsed JSON + markdown outputs.
   const payload = {
     source: "amazon_product",
     domain: "com",
@@ -328,6 +335,7 @@ async function fetchProductDetails(asin: string) {
 }
 
 async function persistOutput(payload: ScrapeResponse) {
+  // Requirement: persist structured JSON output and keep latest pointer file.
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const timestamp = payload.last_updated.replace(/[:.]/g, "-");
@@ -418,6 +426,7 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
     run_config: {
       query: SEARCH_QUERY,
       domain: "amazon.com",
+      // Feature: geo-location support for localized marketplace results.
       geo_location: geoLocation,
     },
     products,
@@ -429,6 +438,8 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
 }
 
 async function scrapeAndPersistFromSearchResponse(oxylabsResponse: unknown, options?: { geoLocation?: string | null; lastUpdated?: string | null }) {
+  // Scheduler hand-off: takes completed scheduler run results and persists them
+  // using the same normalization/output pipeline as real-time scrapes.
   const geoLocation = options?.geoLocation ?? (await readGeoLocationSetting());
   const found = extractTopProductsFromSearchResponse(oxylabsResponse);
   return persistScrapeResults(found, geoLocation, options?.lastUpdated ?? undefined);
@@ -458,6 +469,8 @@ export async function GET() {
 }
 
 export async function POST() {
+  // Manual trigger is intentionally disabled.
+  // This PoC runs via scheduler-only workflow for hourly automation.
   return NextResponse.json(
     {
       error: "Manual scrape is disabled. Enable the hourly scheduler to run scraping.",

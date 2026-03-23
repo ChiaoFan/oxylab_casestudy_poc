@@ -8,9 +8,11 @@ const OUTPUT_DIR = join(process.cwd(), "output");
 const SETTINGS_FILE = join(OUTPUT_DIR, "tecnovaai_settings.json");
 const OXYLABS_SCHEDULES_URL = "https://data.oxylabs.io/v1/schedules";
 const OXYLABS_QUERIES_URL = "https://data.oxylabs.io/v1/queries";
+// Case-study requirement: run once per hour.
 const OXYLABS_SCHEDULE_CRON = "0 * * * *";
 const OXYLABS_SCHEDULE_LIFETIME_DAYS = 30;
 const OXYLABS_SCHEDULE_QUERY = "iphone";
+// Internal sync cadence: check every minute for completed hourly runs.
 const OXYLABS_SYNC_CRON = "* * * * *";
 
 type SettingsPayload = {
@@ -194,6 +196,7 @@ async function writeOxylabsSchedulerLastProcessedRunId(value: string | null) {
 }
 
 async function oxylabsSchedulesRequest(path: string, init?: RequestInit) {
+  // Feature: Oxylabs Scheduler API integration.
   const response = await fetch(`${OXYLABS_SCHEDULES_URL}${path}`, {
     ...init,
     headers: {
@@ -263,6 +266,8 @@ function normalizeOxylabsScheduleResponse(parsedBody: unknown, bodyText: string)
 
 async function createOxylabsSchedule() {
   const geoLocation = await readGeoLocationSetting();
+  // Feature: Create server-side hourly schedule in Oxylabs.
+  // Uses amazon_search source to collect top iPhone results each hour.
   const payload = {
     cron: OXYLABS_SCHEDULE_CRON,
     items: [
@@ -292,6 +297,7 @@ async function getOxylabsSchedule(scheduleId: string) {
 }
 
 async function setOxylabsScheduleState(scheduleId: string, active: boolean) {
+  // Feature: scheduler state management (enable / disable) without deleting schedule.
   await oxylabsSchedulesRequest(`/${scheduleId}/state`, {
     method: "PUT",
     body: JSON.stringify({ active }),
@@ -301,6 +307,7 @@ async function setOxylabsScheduleState(scheduleId: string, active: boolean) {
 }
 
 async function getOxylabsScheduleRuns(scheduleId: string): Promise<OxylabsScheduleRun[]> {
+  // Feature: retrieve historical run metadata from Oxylabs schedule runs endpoint.
   const { parsedBody } = await oxylabsSchedulesRequest(`/${scheduleId}/runs`, { method: "GET" });
   if (!isRecord(parsedBody) || !Array.isArray(parsedBody.runs)) {
     return [];
@@ -352,6 +359,7 @@ async function syncOxylabsSchedulerRuns() {
   oxylabsSyncState.isRunning = true;
   try {
     const lastProcessedRunId = await readOxylabsSchedulerLastProcessedRunId();
+    // Feature: poll completed schedule runs and sync only unseen runs.
     const runs = await getOxylabsScheduleRuns(scheduleId);
     const completedRuns = runs
       .filter((run) => run.jobs.some((job) => job.resultStatus === "done"))
@@ -371,6 +379,7 @@ async function syncOxylabsSchedulerRuns() {
       const completedJob = run.jobs.find((job) => job.resultStatus === "done");
       if (!completedJob) continue;
 
+      // Feature: read run output by query/job id from /queries/{id}/results endpoint.
       const searchResponse = await getOxylabsQueryResults(completedJob.id, ["parsed"]);
       const geoLocation = await readGeoLocationSetting();
       await scrapeAndPersistFromSearchResponse(searchResponse, {
@@ -391,6 +400,7 @@ async function syncOxylabsSchedulerRuns() {
 export function initOxylabsSchedulerSync() {
   if (oxylabsSyncState.isInitialized) return;
 
+  // Internal worker: checks for completed hourly runs every minute and ingests results.
   oxylabsSyncState.task = cron.schedule(OXYLABS_SYNC_CRON, () => {
     void syncOxylabsSchedulerRuns();
   });
@@ -408,6 +418,7 @@ function buildEmptySchedulerStatus(): OxylabsSchedulerStatus {
 }
 
 export async function getOxylabsSchedulerStatus() {
+  // Scheduler feature surface for UI/API: returns active state, next run, and current sync state.
   const scheduleId = await readOxylabsSchedulerId();
   if (!scheduleId) {
     return buildEmptySchedulerStatus();
@@ -433,6 +444,7 @@ export async function getOxylabsSchedulerStatus() {
 }
 
 export async function enableOxylabsScheduler() {
+  // Scheduler feature: create-if-missing and enable hourly run.
   initOxylabsSchedulerSync();
 
   let scheduleId = await readOxylabsSchedulerId();
@@ -448,6 +460,7 @@ export async function enableOxylabsScheduler() {
 }
 
 export async function disableOxylabsScheduler() {
+  // Scheduler feature: pause hourly run while preserving schedule metadata.
   const scheduleId = await readOxylabsSchedulerId();
   if (!scheduleId) {
     return getOxylabsSchedulerStatus();
