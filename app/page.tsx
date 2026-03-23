@@ -8,6 +8,7 @@ import {
   CircularProgress,
   Container,
   CssBaseline,
+  Link,
   Paper,
   Stack,
   Table,
@@ -48,7 +49,10 @@ type OxylabsSchedulerStatus = {
   scheduleId: string | null;
   active: boolean | null;
   nextRunAt: string | null;
+  isRunning: boolean;
 };
+
+type OxylabsSchedulerAction = "enable_oxylabs_scheduler" | "disable_oxylabs_scheduler";
 
 type SortKey = "pos" | "price" | "is_prime" | "is_sponsored";
 type SortDirection = "asc" | "desc";
@@ -203,7 +207,6 @@ export default function Home() {
   const [draftGeoLocation, setDraftGeoLocation] = useState("");
   const [isEditingGeo, setIsEditingGeo] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isScraping, setIsScraping] = useState(false);
   const [isSavingGeo, setIsSavingGeo] = useState(false);
   const [isDownloadingMarkdown, setIsDownloadingMarkdown] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("pos");
@@ -230,25 +233,6 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function runScrape() {
-    try {
-      setIsScraping(true);
-      setError(null);
-      const response = await fetch("/api/scrape", { method: "POST", cache: "no-store" });
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Scrape failed.");
-      }
-
-      setData(body as ScrapeData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setIsScraping(false);
     }
   }
 
@@ -314,31 +298,14 @@ export default function Home() {
   }
 
   async function enableOxylabsScheduler() {
-    try {
-      setIsTogglingOxylabsScheduler(true);
-      setError(null);
-
-      const response = await fetch("/api/scrape/system", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "enable_oxylabs_scheduler" }),
-        cache: "no-store",
-      });
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Failed to enable Oxylabs scheduler.");
-      }
-
-      setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setIsTogglingOxylabsScheduler(false);
-    }
+    await updateOxylabsScheduler("enable_oxylabs_scheduler");
   }
 
   async function disableOxylabsScheduler() {
+    await updateOxylabsScheduler("disable_oxylabs_scheduler");
+  }
+
+  async function updateOxylabsScheduler(action: OxylabsSchedulerAction) {
     try {
       setIsTogglingOxylabsScheduler(true);
       setError(null);
@@ -346,13 +313,16 @@ export default function Home() {
       const response = await fetch("/api/scrape/system", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "disable_oxylabs_scheduler" }),
+        body: JSON.stringify({ action }),
         cache: "no-store",
       });
       const body = await response.json();
 
       if (!response.ok) {
-        throw new Error(body?.error || "Failed to disable Oxylabs scheduler.");
+        const fallbackMessage = action === "enable_oxylabs_scheduler"
+          ? "Failed to enable Oxylabs scheduler."
+          : "Failed to disable Oxylabs scheduler.";
+        throw new Error(body?.error || fallbackMessage);
       }
 
       setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
@@ -373,14 +343,29 @@ export default function Home() {
     void loadSchedulerStatus();
   }, []);
 
-  // Poll scheduler status every 30 seconds
+  const isSchedulerScraping = oxylabsSchedulerStatus?.isRunning === true;
+
+  // Poll scheduler status: every 60s while scraping, every 30s otherwise
   useEffect(() => {
     const interval = setInterval(() => {
       void loadSchedulerStatus();
+    }, isSchedulerScraping ? 60000 : 30000);
+
+    return () => clearInterval(interval);
+  }, [isSchedulerScraping]);
+
+  // While scheduler scrape is running, keep refreshing latest output
+  // so `data.last_updated` can flip and stop the spinner immediately.
+  useEffect(() => {
+    if (!isSchedulerScraping) return;
+
+    void loadData();
+    const interval = setInterval(() => {
+      void loadData();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isSchedulerScraping]);
 
   const exportJson = useMemo(() => {
     if (!data) return "";
@@ -487,23 +472,25 @@ export default function Home() {
             <Stack spacing={2.5}>
           <Box>
             <Typography variant="h4" fontWeight={600}>
-              TechNovaAI Amazon iPhone Monitor
+              TechNovaAI Amazon iPhone Dashboard
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Last updated: {formatDateTime(data?.last_updated ?? null)}
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              Powered by Oxylabs Web Scraper API | Automated Hourly Data Pipeline
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              Built by Chiao-Fan Yang | GitHub Repo:{" "}
+              <Link
+                href="https://github.com/ChiaoFan/oxylab_casestudy_poc"
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="hover"
+              >
+                https://github.com/ChiaoFan/oxylab_casestudy_poc
+              </Link>
             </Typography>
           </Box>
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            <Button
-              variant="contained"
-              onClick={() => void runScrape()}
-              disabled={isScraping}
-              startIcon={isScraping ? <CircularProgress size={14} /> : undefined}
-            >
-              {isScraping ? "Scraping…" : "Run New Scrape"}
-            </Button>
-
             <Button
               variant="contained"
               color="secondary"
@@ -535,8 +522,21 @@ export default function Home() {
                 Hourly Auto-Scraping with Oxylabs Scheduler
               </Typography>
 
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  Status: <strong>{oxylabsSchedulerStatus?.active ? "Active" : "Paused"}</strong>
+                </Typography>
+                {isSchedulerScraping && (
+                  <>
+                    <CircularProgress size={12} thickness={5} color="primary" />
+                    <Typography variant="caption" color="primary" fontWeight={600}>
+                      Scraping…
+                    </Typography>
+                  </>
+                )}
+              </Stack>
               <Typography variant="caption" color="text.secondary">
-                Status: <strong>{oxylabsSchedulerStatus?.active ? "Active" : "Paused"}</strong>
+                Last updated: <strong>{formatDateTime(data?.last_updated ?? null)}</strong>
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Next Oxylabs run: <strong>{formatDateTime(oxylabsSchedulerStatus?.nextRunAt ?? null)}</strong>

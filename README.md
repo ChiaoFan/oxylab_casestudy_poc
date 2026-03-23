@@ -28,7 +28,8 @@ A Next.js application that scrapes Amazon iPhone listings using the Oxylabs API,
 - Generates structured JSON and Markdown output files
 - Supports hourly automated scraping via Oxylabs Scheduler
 - Configurable geo-location (ZIP code) for localized pricing
-- REST API: `GET /api/scrape` (latest results), `POST /api/scrape` (trigger scrape)
+- Scheduler-only scraping workflow (manual `POST /api/scrape` is disabled)
+- REST API: `GET /api/scrape` (latest results), `GET/POST /api/scrape/system` (scheduler status + enable/disable), `GET/POST /api/scrape/settings` (geo-location)
 - Health check endpoint: `GET /api/health`
 
 ## Local Development

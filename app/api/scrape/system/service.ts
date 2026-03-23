@@ -48,6 +48,13 @@ type OxylabsScheduleRun = {
   successRate: number | null;
 };
 
+type OxylabsSchedulerStatus = {
+  scheduleId: string | null;
+  active: boolean | null;
+  nextRunAt: string | null;
+  isRunning: boolean;
+};
+
 declare global {
   var oxylabsSyncState: OxylabsSyncState | undefined;
 }
@@ -391,34 +398,35 @@ export function initOxylabsSchedulerSync() {
   console.log("[Oxylabs Sync] Ready. Checking for completed runs every minute.");
 }
 
+function buildEmptySchedulerStatus(): OxylabsSchedulerStatus {
+  return {
+    scheduleId: null,
+    active: null,
+    nextRunAt: null,
+    isRunning: false,
+  };
+}
+
 export async function getOxylabsSchedulerStatus() {
   const scheduleId = await readOxylabsSchedulerId();
   if (!scheduleId) {
-    return {
-      scheduleId: null,
-      active: null,
-      nextRunAt: null,
-    };
+    return buildEmptySchedulerStatus();
   }
 
   try {
     const schedule = await getOxylabsSchedule(scheduleId);
-    await syncOxylabsSchedulerRuns();
     return {
       scheduleId: schedule.scheduleId,
       active: schedule.active,
       nextRunAt: schedule.nextRunAt,
+      isRunning: oxylabsSyncState.isRunning,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     if (message.includes("404")) {
       await writeOxylabsSchedulerId(null);
       await writeOxylabsSchedulerLastProcessedRunId(null);
-      return {
-        scheduleId: null,
-        active: null,
-        nextRunAt: null,
-      };
+      return buildEmptySchedulerStatus();
     }
     throw error;
   }

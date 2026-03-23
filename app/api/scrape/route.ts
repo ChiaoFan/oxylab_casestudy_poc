@@ -31,6 +31,7 @@ type ScrapeResponse = {
   last_updated: string;
   run_config: {
     query: string;
+    domain: "amazon.com";
     geo_location: string | null;
   };
   products: ScrapedProduct[];
@@ -47,7 +48,6 @@ const SEARCH_QUERY = "iphone";
 const MAX_PRODUCTS = 100;
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 600000;
-const ESTIMATED_PRODUCTS_PER_SEARCH_PAGE = 15;
 const OUTPUT_DIR = join(process.cwd(), "output");
 const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "json_latest.json");
 const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "markdown_latest.md");
@@ -293,21 +293,6 @@ function mapDetailContent(content: unknown) {
   };
 }
 
-async function fetchSearchProducts(geoLocation: string | null) {
-  const pagesToRequest = Math.max(1, Math.ceil(MAX_PRODUCTS / ESTIMATED_PRODUCTS_PER_SEARCH_PAGE));
-  const payload = {
-    source: "amazon_search",
-    domain: "com",
-    query: SEARCH_QUERY,
-    parse: true,
-    pages: pagesToRequest,
-    ...(geoLocation ? { geo_location: geoLocation } : {}),
-  };
-
-  const response = await oxylabsRequest(payload);
-  return extractTopProductsFromSearchResponse(response);
-}
-
 function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
   const contents = extractResultContentsByType(oxylabsResponse, "parsed");
   const rows = contents.flatMap((content) => collectSearchRows(content));
@@ -368,6 +353,7 @@ function buildMarkdownDocument(
     "",
     `Last updated: ${lastUpdated}`,
     `Query: ${runConfig.query}`,
+    `Domain: amazon.com`,
     `Geo-location: ${runConfig.geo_location ?? "null"}`,
     "",
     ...sections,
@@ -431,6 +417,7 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
     last_updated: lastUpdated ?? new Date().toISOString(),
     run_config: {
       query: SEARCH_QUERY,
+      domain: "amazon.com",
       geo_location: geoLocation,
     },
     products,
@@ -441,19 +428,13 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
   return body;
 }
 
-async function scrapeAndPersist() {
-  const geoLocation = await readGeoLocationSetting();
-  const found = await fetchSearchProducts(geoLocation);
-  return persistScrapeResults(found, geoLocation);
-}
-
 async function scrapeAndPersistFromSearchResponse(oxylabsResponse: unknown, options?: { geoLocation?: string | null; lastUpdated?: string | null }) {
   const geoLocation = options?.geoLocation ?? (await readGeoLocationSetting());
   const found = extractTopProductsFromSearchResponse(oxylabsResponse);
   return persistScrapeResults(found, geoLocation, options?.lastUpdated ?? undefined);
 }
 
-export { scrapeAndPersist, scrapeAndPersistFromSearchResponse };
+export { scrapeAndPersistFromSearchResponse };
 
 export async function GET() {
   try {
@@ -466,7 +447,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "No saved output found yet. Run a scrape first with POST /api/scrape to generate output/json_latest.json.",
+            "No saved output found yet. Enable the scheduler and wait for the first run to generate output/json_latest.json.",
         },
         { status: 404 }
       );
@@ -477,11 +458,10 @@ export async function GET() {
 }
 
 export async function POST() {
-  try {
-    const body = await scrapeAndPersist();
-    return NextResponse.json(body);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return NextResponse.json(
+    {
+      error: "Manual scrape is disabled. Enable the hourly scheduler to run scraping.",
+    },
+    { status: 405 }
+  );
 }
