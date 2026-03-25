@@ -577,10 +577,10 @@ export default function Home() {
                   )}
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
-                  Last updated: <strong>{formatDateTime(data?.last_updated ?? null)}</strong>
+                  Last updated: <strong>{formatDateTime(data?.last_updated ?? null)}</strong> (CET)
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Next Oxylabs run: <strong>{formatDateTime(oxylabsSchedulerStatus?.nextRunAt ?? null)}</strong>
+                  Next Oxylabs run: <strong>{formatDateTime(oxylabsSchedulerStatus?.nextRunAt ?? null)}</strong> (CET)
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Schedule ID: <strong>{oxylabsSchedulerStatus?.scheduleId ?? "-"}</strong>
@@ -695,7 +695,7 @@ export default function Home() {
                   </Stack>
 
                   <Typography variant="caption" color="text.secondary">
-                    Updated at: <strong>{formatDateTime(usageStats?.last_updated ?? null)}</strong>
+                    Updated at: <strong>{formatDateTime(usageStats?.last_updated ?? null)}</strong> (CET)
                   </Typography>
 
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
