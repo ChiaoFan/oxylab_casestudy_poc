@@ -4,6 +4,11 @@ import { DEFAULT_GEO_LOCATION, normalizeGeoLocation, readGeoLocationSetting, wri
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/**
+*  Geo-location Settings Controller for Frontend Integration.
+ **/
+
+// Returns the current geo-location setting and the default fallback value.
 export async function GET() {
   try {
     return NextResponse.json({
@@ -16,9 +21,12 @@ export async function GET() {
   }
 }
 
+// Accepts a new geo-location value, validates it, saves it, and returns the updated setting.
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { geo_location?: unknown };
+
+    // Normalize and validate the incoming value (e.g. trim, null-check, ZIP format).
     const geoLocation = normalizeGeoLocation(body.geo_location);
 
     await writeGeoLocationSetting(geoLocation);

@@ -12,7 +12,6 @@ type OxylabsSearchItem = {
 
 /** 
  * The product data we want to extract for each iphone product page. 
- * 
  *  **/
 type ScrapedProduct = {
   asin: string;
@@ -26,15 +25,19 @@ type ScrapedProduct = {
   product_details: unknown;
 };
 
-
+/** 
+ * The structure of the final output JSON that we want to persist for each scrape run. 
+ *  **/
 type ScrapeResponse = {
   last_updated: string;
   run_config: {
     query: string;
+    domain: "amazon.com";
     geo_location: string | null;
   };
   products: ScrapedProduct[];
 };
+
 
 type ProductMarkdown = {
   asin: string;
@@ -47,7 +50,6 @@ const SEARCH_QUERY = "iphone";
 const MAX_PRODUCTS = 100;
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 600000;
-const ESTIMATED_PRODUCTS_PER_SEARCH_PAGE = 15;
 const OUTPUT_DIR = join(process.cwd(), "output");
 const LATEST_OUTPUT_FILE = join(OUTPUT_DIR, "json_latest.json");
 const LATEST_MARKDOWN_OUTPUT_FILE = join(OUTPUT_DIR, "markdown_latest.md");
@@ -66,13 +68,16 @@ function getCredentials() {
   return { user, pass };
 }
 
+// Ensures unknown JSON is an object before accessing its properties.
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+
 async function oxylabsRequest(payload: Record<string, unknown>) {
   const { user, pass } = getCredentials();
-  
+
+  // Feature: Oxylabs Web Scraper API authentication via Basic Auth.
   const response = await fetch(OXYLABS_ENDPOINT, {
     method: "POST",
     headers: {
@@ -92,6 +97,8 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
     throw new Error(`Oxylabs returned non-JSON (${response.status}).`);
   }
 
+  // Feature: Push-Pull async workflow.
+  // If Oxylabs accepts async execution (202), poll by query id until results are ready.
   if (response.status === 202 && isRecord(parsedBody) && typeof parsedBody.id === "string") {
     return pollQueryResults(parsedBody.id, getRequestedResultTypes(payload));
   }
@@ -107,6 +114,7 @@ async function oxylabsRequest(payload: Record<string, unknown>) {
 function getRequestedResultTypes(payload: Record<string, unknown>): string[] {
   const resultTypes = new Set<string>();
 
+  // Feature: Request multiple output formats from a single query.
   if (payload.parse === true) resultTypes.add("parsed");
   if (payload.markdown === true) resultTypes.add("markdown");
 
@@ -163,6 +171,11 @@ async function pollQueryResults(queryId: string, resultTypes: string[] = ["parse
   throw new Error(`Oxylabs polling timed out for query ${queryId}.`);
 }
 
+/**
+ * Feature: Multiple Output Format Extraction
+ * Oxylabs returns a `results` array where each entry has a `type` field ("parsed" or "markdown").
+ * This function filters by that type so parsed JSON and markdown content can be used independently.
+ **/
 function extractResultContentsByType(oxylabsResponse: unknown, type: string): unknown[] {
   if (!isRecord(oxylabsResponse)) return [];
   const results = oxylabsResponse.results;
@@ -192,6 +205,12 @@ function extractResultsContent(oxylabsResponse: unknown): unknown {
   return extractFirstResultContentByType(oxylabsResponse, "parsed");
 }
 
+/**
+ * Feature: amazon_search Parsed Content Traversal
+ * The Oxylabs amazon_search parsed response embeds product rows at varying depths inside nested objects.
+ * This function recursively walks the entire content tree to collect every item that has an ASIN field,
+ * regardless of where Oxylabs nests it in the response structure.
+ **/
 function collectSearchRows(node: unknown, rows: OxylabsSearchItem[] = []): OxylabsSearchItem[] {
   if (Array.isArray(node)) {
     for (const value of node) collectSearchRows(value, rows);
@@ -234,6 +253,7 @@ function uniqueTopProducts(rows: OxylabsSearchItem[]): OxylabsSearchItem[] {
       is_prime: row.is_prime,
       is_sponsored: row.is_sponsored,
     });
+    // Case-study requirement: cap output at top 100 products.
     if (unique.length >= MAX_PRODUCTS) break;
   }
 
@@ -293,20 +313,7 @@ function mapDetailContent(content: unknown) {
   };
 }
 
-async function fetchSearchProducts(geoLocation: string | null) {
-  const pagesToRequest = Math.max(1, Math.ceil(MAX_PRODUCTS / ESTIMATED_PRODUCTS_PER_SEARCH_PAGE));
-  const payload = {
-    source: "amazon_search",
-    domain: "com",
-    query: SEARCH_QUERY,
-    parse: true,
-    pages: pagesToRequest,
-    ...(geoLocation ? { geo_location: geoLocation } : {}),
-  };
 
-  const response = await oxylabsRequest(payload);
-  return extractTopProductsFromSearchResponse(response);
-}
 
 function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
   const contents = extractResultContentsByType(oxylabsResponse, "parsed");
@@ -316,21 +323,20 @@ function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
   return uniqueRows;
 }
 
-/**
- * Features: 
- * 
- * 
- *  **/
-
 async function fetchProductDetails(asin: string) {
+  /**
+   * Feature: Submits a product-page scrape request using the ASIN as the query.
+   * - `source: "amazon_product"` targets the Amazon product detail page directly.
+   * - `parse: true` requests structured JSON output (price, title, description, delivery, etc.).
+   * - `markdown: true` requests a markdown rendering of the product page for storage.
+   **/
   const payload = {
     source: "amazon_product",
     domain: "com",
     query: asin,
     parse: true,
-    markdown: true
+    markdown: true,
   };
-
   console.log("[amazon_product payload]", payload);
   const response = await oxylabsRequest(payload);
   const parsedContent = extractResultsContent(response);
@@ -343,6 +349,7 @@ async function fetchProductDetails(asin: string) {
 }
 
 async function persistOutput(payload: ScrapeResponse) {
+  // persist structured JSON output and keep latest pointer file.
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const timestamp = payload.last_updated.replace(/[:.]/g, "-");
@@ -368,6 +375,7 @@ function buildMarkdownDocument(
     "",
     `Last updated: ${lastUpdated}`,
     `Query: ${runConfig.query}`,
+    `Domain: amazon.com`,
     `Geo-location: ${runConfig.geo_location ?? "null"}`,
     "",
     ...sections,
@@ -431,6 +439,8 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
     last_updated: lastUpdated ?? new Date().toISOString(),
     run_config: {
       query: SEARCH_QUERY,
+      domain: "amazon.com",
+      // Feature: geo-location support for localized marketplace results.
       geo_location: geoLocation,
     },
     products,
@@ -441,19 +451,18 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
   return body;
 }
 
-async function scrapeAndPersist() {
-  const geoLocation = await readGeoLocationSetting();
-  const found = await fetchSearchProducts(geoLocation);
-  return persistScrapeResults(found, geoLocation);
-}
-
+/**
+ * Scheduler Hand-off: Oxylabs Scheduler
+ * Called by the scheduler after it receives a completed amazon_search result from Oxylabs.
+ **/
 async function scrapeAndPersistFromSearchResponse(oxylabsResponse: unknown, options?: { geoLocation?: string | null; lastUpdated?: string | null }) {
+
   const geoLocation = options?.geoLocation ?? (await readGeoLocationSetting());
   const found = extractTopProductsFromSearchResponse(oxylabsResponse);
   return persistScrapeResults(found, geoLocation, options?.lastUpdated ?? undefined);
 }
 
-export { scrapeAndPersist, scrapeAndPersistFromSearchResponse };
+export { scrapeAndPersistFromSearchResponse };
 
 export async function GET() {
   try {
@@ -466,7 +475,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "No saved output found yet. Run a scrape first with POST /api/scrape to generate output/json_latest.json.",
+            "No saved output found yet. Enable the scheduler and wait for the first run to generate output/json_latest.json.",
         },
         { status: 404 }
       );
@@ -476,12 +485,3 @@ export async function GET() {
   }
 }
 
-export async function POST() {
-  try {
-    const body = await scrapeAndPersist();
-    return NextResponse.json(body);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}

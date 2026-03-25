@@ -21,6 +21,7 @@ async function buildSystemResponse() {
 
 export async function GET() {
   try {
+    // Scheduler API endpoint: read current scheduler status for frontend.
     initOxylabsSchedulerSync();
 
     return NextResponse.json(await buildSystemResponse());
@@ -32,6 +33,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // Scheduler API endpoint: enable or disable hourly scheduler from frontend controls.
     initOxylabsSchedulerSync();
 
     const body = (await request.json()) as ActionBody;
