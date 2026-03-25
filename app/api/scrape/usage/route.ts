@@ -15,7 +15,7 @@ type OxylabsStatsResponse = {
   };
 };
 
-const TARGET_PRODUCT_TITLE = "web_scraper_api";
+const TARGET_PRODUCT_TITLE = "ecommerce_scraper_api";
 
 function getCredentials() {
   const user = process.env.OXYLABS_USER;

@@ -13,22 +13,20 @@ A Next.js application that scrapes Amazon iPhone listings using the Oxylabs API,
 | Framework | [Next.js 16](https://nextjs.org/) (App Router) |
 | Language | TypeScript |
 | UI | React 19, MUI (Material UI), Tailwind CSS |
-| Scraping API | [Oxylabs](https://oxylabs.io/) (Amazon Search + Product) |
-| Scheduling | node-cron (hourly sync worker) |
+| Scraping API | [Oxylabs Web Scraper API](https://developers.oxylabs.io/scraping-solutions/web-scraper-api) |
 | Runtime | Node.js 24 |
 | Containerization | Docker |
-| Container Registry | Amazon ECR |
-| Hosting | Amazon EC2 (eu-north-1) |
+| Hosting | Amazon EC2 |
 | CDN / HTTPS | Amazon CloudFront |
 
 ## Features
 
-- Scrapes top 100 Amazon iPhone listings via Oxylabs push-pull integration
-- Fetches per-product details (title, price, delivery, description, prime status)
-- Generates structured JSON and Markdown output files
-- Supports hourly automated scraping via Oxylabs Scheduler
-- Configurable geo-location (ZIP code) for localized pricing
-- Usage statistics from Oxylabs (all_count, average_response_time)
+- Oxylabs Scheduler: Supports hourly automated scraping
+- Localization (Geo-location): For localized U.S. pricing.
+- Dedicated Parsers & Markdown Output: For instant, structured JSON and Markdown
+- Push-Pull Integration: Decoupled Asynchronous Workflows for Zero Idle Load. 
+- Oxylabs Usage Statistics: To monitor the total volume of requests
+
 - REST API:
   - `GET /api/scrape` — Latest saved scrape results
   - `GET /api/scrape/usage` — Oxylabs usage stats (all_count, average_response_time for web_scraper_api)
@@ -54,11 +52,6 @@ npm run dev
 
 3. Open `http://localhost:3000`.
 
-To use a custom port:
-
-```bash
-npm run dev -- -p 4000
-```
 
 ## Docker
 
@@ -70,11 +63,6 @@ docker compose up -d --build
 
 App will be available at `http://localhost:3000`.
 
-To use a different host port:
-
-```bash
-HOST_PORT=4000 docker compose up -d --build
-```
 
 ### Stop
 

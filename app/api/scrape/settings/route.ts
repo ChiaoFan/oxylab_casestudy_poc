@@ -5,14 +5,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Feature: Geo-location Settings Controller for Frontend Integration.
- *
- * GET  — Returns the current saved geo-location and the default fallback value.
- *         Used by the UI to display the active geo-location in the settings card.
- *
- * POST — Accepts a new geo-location value from the UI, normalizes and validates it,
- *         persists it to disk, and returns the updated setting.
- *         Used by the UI's geo-location editor when the user saves a new ZIP code.
+*  Geo-location Settings Controller for Frontend Integration.
  **/
 
 // Returns the current geo-location setting and the default fallback value.

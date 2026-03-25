@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error:
-            "No markdown output found yet. Run a scrape first with POST /api/scrape to generate output/markdown_latest.md.",
+            "No markdown output found yet. Enable the scheduler and wait for the first run to generate output/markdown_latest.md.",
         },
         { status: 404 }
       );

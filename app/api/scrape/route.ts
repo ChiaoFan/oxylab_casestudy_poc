@@ -38,9 +38,7 @@ type ScrapeResponse = {
   products: ScrapedProduct[];
 };
 
-/** 
- * The structure of the markdown content we want to extract for each product, which will be persisted in a separate markdown file.
- *  **/
+
 type ProductMarkdown = {
   asin: string;
   pos: number;
@@ -173,6 +171,11 @@ async function pollQueryResults(queryId: string, resultTypes: string[] = ["parse
   throw new Error(`Oxylabs polling timed out for query ${queryId}.`);
 }
 
+/**
+ * Feature: Multiple Output Format Extraction
+ * Oxylabs returns a `results` array where each entry has a `type` field ("parsed" or "markdown").
+ * This function filters by that type so parsed JSON and markdown content can be used independently.
+ **/
 function extractResultContentsByType(oxylabsResponse: unknown, type: string): unknown[] {
   if (!isRecord(oxylabsResponse)) return [];
   const results = oxylabsResponse.results;
@@ -202,6 +205,12 @@ function extractResultsContent(oxylabsResponse: unknown): unknown {
   return extractFirstResultContentByType(oxylabsResponse, "parsed");
 }
 
+/**
+ * Feature: amazon_search Parsed Content Traversal
+ * The Oxylabs amazon_search parsed response embeds product rows at varying depths inside nested objects.
+ * This function recursively walks the entire content tree to collect every item that has an ASIN field,
+ * regardless of where Oxylabs nests it in the response structure.
+ **/
 function collectSearchRows(node: unknown, rows: OxylabsSearchItem[] = []): OxylabsSearchItem[] {
   if (Array.isArray(node)) {
     for (const value of node) collectSearchRows(value, rows);
@@ -304,6 +313,8 @@ function mapDetailContent(content: unknown) {
   };
 }
 
+
+
 function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
   const contents = extractResultContentsByType(oxylabsResponse, "parsed");
   const rows = contents.flatMap((content) => collectSearchRows(content));
@@ -313,8 +324,12 @@ function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
 }
 
 async function fetchProductDetails(asin: string) {
-  // Feature: Product-page scrape request via asin
-  // Uses amazon_product source and requests both parsed JSON + markdown outputs.
+  /**
+   * Feature: Submits a product-page scrape request using the ASIN as the query.
+   * - `source: "amazon_product"` targets the Amazon product detail page directly.
+   * - `parse: true` requests structured JSON output (price, title, description, delivery, etc.).
+   * - `markdown: true` requests a markdown rendering of the product page for storage.
+   **/
   const payload = {
     source: "amazon_product",
     domain: "com",
@@ -322,7 +337,6 @@ async function fetchProductDetails(asin: string) {
     parse: true,
     markdown: true,
   };
-
   console.log("[amazon_product payload]", payload);
   const response = await oxylabsRequest(payload);
   const parsedContent = extractResultsContent(response);
@@ -335,7 +349,7 @@ async function fetchProductDetails(asin: string) {
 }
 
 async function persistOutput(payload: ScrapeResponse) {
-  // Requirement: persist structured JSON output and keep latest pointer file.
+  // persist structured JSON output and keep latest pointer file.
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   const timestamp = payload.last_updated.replace(/[:.]/g, "-");
@@ -437,7 +451,10 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
   return body;
 }
 
-  // Feature: extract and persist results from a search response by oxylabs scheduler
+/**
+ * Scheduler Hand-off: Oxylabs Scheduler
+ * Called by the scheduler after it receives a completed amazon_search result from Oxylabs.
+ **/
 async function scrapeAndPersistFromSearchResponse(oxylabsResponse: unknown, options?: { geoLocation?: string | null; lastUpdated?: string | null }) {
 
   const geoLocation = options?.geoLocation ?? (await readGeoLocationSetting());
