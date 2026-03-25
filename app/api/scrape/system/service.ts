@@ -266,7 +266,7 @@ function normalizeOxylabsScheduleResponse(parsedBody: unknown, bodyText: string)
 
 async function createOxylabsSchedule() {
   const geoLocation = await readGeoLocationSetting();
-  // Feature: Create server-side hourly schedule in Oxylabs.
+  // Feature: Oxylabs Scheduler Creates server-side hourly schedule in Oxylabs.
   // Uses amazon_search source to collect top iPhone results each hour.
   const payload = {
     cron: OXYLABS_SCHEDULE_CRON,

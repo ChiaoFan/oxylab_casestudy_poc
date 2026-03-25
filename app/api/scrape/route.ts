@@ -12,7 +12,6 @@ type OxylabsSearchItem = {
 
 /** 
  * The product data we want to extract for each iphone product page. 
- * 
  *  **/
 type ScrapedProduct = {
   asin: string;
@@ -26,7 +25,9 @@ type ScrapedProduct = {
   product_details: unknown;
 };
 
-
+/** 
+ * The structure of the final output JSON that we want to persist for each scrape run. 
+ *  **/
 type ScrapeResponse = {
   last_updated: string;
   run_config: {
@@ -37,6 +38,9 @@ type ScrapeResponse = {
   products: ScrapedProduct[];
 };
 
+/** 
+ * The structure of the markdown content we want to extract for each product, which will be persisted in a separate markdown file.
+ *  **/
 type ProductMarkdown = {
   asin: string;
   pos: number;
@@ -66,9 +70,11 @@ function getCredentials() {
   return { user, pass };
 }
 
+// Ensures unknown JSON is an object before accessing its properties.
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
 
 async function oxylabsRequest(payload: Record<string, unknown>) {
   const { user, pass } = getCredentials();
@@ -306,21 +312,15 @@ function extractTopProductsFromSearchResponse(oxylabsResponse: unknown) {
   return uniqueRows;
 }
 
-/**
- * Features: 
- * 
- * 
- *  **/
-
 async function fetchProductDetails(asin: string) {
-  // Feature: Product-page scrape request.
+  // Feature: Product-page scrape request via asin
   // Uses amazon_product source and requests both parsed JSON + markdown outputs.
   const payload = {
     source: "amazon_product",
     domain: "com",
     query: asin,
     parse: true,
-    markdown: true
+    markdown: true,
   };
 
   console.log("[amazon_product payload]", payload);
@@ -437,9 +437,9 @@ async function persistScrapeResults(found: OxylabsSearchItem[], geoLocation: str
   return body;
 }
 
+  // Feature: extract and persist results from a search response by oxylabs scheduler
 async function scrapeAndPersistFromSearchResponse(oxylabsResponse: unknown, options?: { geoLocation?: string | null; lastUpdated?: string | null }) {
-  // Scheduler hand-off: takes completed scheduler run results and persists them
-  // using the same normalization/output pipeline as real-time scrapes.
+
   const geoLocation = options?.geoLocation ?? (await readGeoLocationSetting());
   const found = extractTopProductsFromSearchResponse(oxylabsResponse);
   return persistScrapeResults(found, geoLocation, options?.lastUpdated ?? undefined);
@@ -468,13 +468,3 @@ export async function GET() {
   }
 }
 
-export async function POST() {
-  // Manual trigger is intentionally disabled.
-  // This PoC runs via scheduler-only workflow for hourly automation.
-  return NextResponse.json(
-    {
-      error: "Manual scrape is disabled. Enable the hourly scheduler to run scraping.",
-    },
-    { status: 405 }
-  );
-}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -50,6 +50,13 @@ type OxylabsSchedulerStatus = {
   active: boolean | null;
   nextRunAt: string | null;
   isRunning: boolean;
+};
+
+type UsageStatsData = {
+  title: string;
+  all_count: number;
+  average_response_time: number | null;
+  last_updated: string;
 };
 
 type OxylabsSchedulerAction = "enable_oxylabs_scheduler" | "disable_oxylabs_scheduler";
@@ -136,6 +143,29 @@ function getPriceSortValue(value: number | string | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function formatCount(value: number): string {
+  return value.toLocaleString();
+}
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Unknown error";
+}
+
+async function requestJson<T>(
+  input: string,
+  init: RequestInit | undefined,
+  fallbackMessage: string
+): Promise<T> {
+  const response = await fetch(input, { cache: "no-store", ...init });
+  const body = await response.json();
+
+  if (!response.ok) {
+    throw new Error((body as { error?: string })?.error || fallbackMessage);
+  }
+
+  return body as T;
+}
+
 function renderStructuredValue(value: unknown) {
   if (value === null || value === undefined) return <Typography variant="body2">-</Typography>;
 
@@ -214,44 +244,38 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [oxylabsSchedulerStatus, setOxylabsSchedulerStatus] = useState<OxylabsSchedulerStatus | null>(null);
   const [isTogglingOxylabsScheduler, setIsTogglingOxylabsScheduler] = useState(false);
+  const [usageStats, setUsageStats] = useState<UsageStatsData | null>(null);
+  const [isLoadingUsageStats, setIsLoadingUsageStats] = useState(true);
+  const [isUpdatingUsageStats, setIsUpdatingUsageStats] = useState(false);
 
   const currentGeoLocation = settings ? (settings.geo_location ?? "null") : "90210";
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch("/api/scrape", { cache: "no-store" });
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Failed to load saved data.");
-      }
-
-      setData(body as ScrapeData);
+      const body = await requestJson<ScrapeData>("/api/scrape", undefined, "Failed to load saved data.");
+      setData(body);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  async function loadSettings() {
+  const loadSettings = useCallback(async () => {
     try {
-      const response = await fetch("/api/scrape/settings", { cache: "no-store" });
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Failed to load geo-location setting.");
-      }
-
-      const nextSettings = body as SettingsData;
+      const nextSettings = await requestJson<SettingsData>(
+        "/api/scrape/settings",
+        undefined,
+        "Failed to load geo-location setting."
+      );
       setSettings(nextSettings);
       setDraftGeoLocation(nextSettings.geo_location ?? "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(getErrorMessage(err));
     }
-  }
+  }, []);
 
   async function saveGeoLocation() {
     try {
@@ -259,43 +283,61 @@ export default function Home() {
       setError(null);
 
       const value = draftGeoLocation.trim();
-      const response = await fetch("/api/scrape/settings", {
+      const nextSettings = await requestJson<SettingsData>("/api/scrape/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ geo_location: value === "" ? null : value }),
-        cache: "no-store",
-      });
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Failed to save geo-location setting.");
-      }
-
-      const nextSettings = body as SettingsData;
+      }, "Failed to save geo-location setting.");
       setSettings(nextSettings);
       setDraftGeoLocation(nextSettings.geo_location ?? "");
       setIsEditingGeo(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(getErrorMessage(err));
     } finally {
       setIsSavingGeo(false);
     }
   }
 
-  async function loadSchedulerStatus() {
+  const loadSchedulerStatus = useCallback(async () => {
     try {
-      const response = await fetch("/api/scrape/system", { cache: "no-store" });
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body?.error || "Failed to load scheduler status.");
-      }
-
+      const body = await requestJson<{ oxylabsScheduler?: OxylabsSchedulerStatus | null }>(
+        "/api/scrape/system",
+        undefined,
+        "Failed to load scheduler status."
+      );
       setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
     } catch (err) {
       console.error("Error loading scheduler status:", err);
     }
-  }
+  }, []);
+
+  const loadUsageStatistics = useCallback(async (options?: { isManualUpdate?: boolean }) => {
+    const isManualUpdate = options?.isManualUpdate === true;
+
+    try {
+      setError(null);
+      if (isManualUpdate) {
+        setIsUpdatingUsageStats(true);
+      } else {
+        setIsLoadingUsageStats(true);
+      }
+
+      const body = await requestJson<UsageStatsData>(
+        "/api/scrape/usage",
+        undefined,
+        "Failed to load usage statistics."
+      );
+      setUsageStats(body);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      if (isManualUpdate) {
+        setIsUpdatingUsageStats(false);
+      } else {
+        setIsLoadingUsageStats(false);
+      }
+    }
+  }, []);
 
   async function enableOxylabsScheduler() {
     await updateOxylabsScheduler("enable_oxylabs_scheduler");
@@ -310,24 +352,17 @@ export default function Home() {
       setIsTogglingOxylabsScheduler(true);
       setError(null);
 
-      const response = await fetch("/api/scrape/system", {
+      const body = await requestJson<{ oxylabsScheduler?: OxylabsSchedulerStatus | null }>("/api/scrape/system", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
-        cache: "no-store",
-      });
-      const body = await response.json();
-
-      if (!response.ok) {
-        const fallbackMessage = action === "enable_oxylabs_scheduler"
-          ? "Failed to enable Oxylabs scheduler."
-          : "Failed to disable Oxylabs scheduler.";
-        throw new Error(body?.error || fallbackMessage);
-      }
+      }, action === "enable_oxylabs_scheduler"
+        ? "Failed to enable Oxylabs scheduler."
+        : "Failed to disable Oxylabs scheduler.");
 
       setOxylabsSchedulerStatus((body.oxylabsScheduler ?? null) as OxylabsSchedulerStatus | null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(getErrorMessage(err));
     } finally {
       setIsTogglingOxylabsScheduler(false);
     }
@@ -337,11 +372,12 @@ export default function Home() {
     setMounted(true);
     void loadData();
     void loadSettings();
+    void loadUsageStatistics();
 
     // Initialize scheduler on app start
     fetch("/api/health", { cache: "no-store" }).catch(console.error);
     void loadSchedulerStatus();
-  }, []);
+  }, [loadData, loadSettings, loadUsageStatistics, loadSchedulerStatus]);
 
   const isSchedulerScraping = oxylabsSchedulerStatus?.isRunning === true;
 
@@ -352,7 +388,7 @@ export default function Home() {
     }, isSchedulerScraping ? 60000 : 30000);
 
     return () => clearInterval(interval);
-  }, [isSchedulerScraping]);
+  }, [isSchedulerScraping, loadSchedulerStatus]);
 
   // While scheduler scrape is running, keep refreshing latest output
   // so `data.last_updated` can flip and stop the spinner immediately.
@@ -365,7 +401,7 @@ export default function Home() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [isSchedulerScraping]);
+  }, [isSchedulerScraping, loadData]);
 
   const exportJson = useMemo(() => {
     if (!data) return "";
@@ -475,7 +511,11 @@ export default function Home() {
               TechNovaAI Amazon iPhone Dashboard
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-              Powered by Oxylabs Web Scraper API | Automated Hourly Data Pipeline
+              Powered by{" "}
+              <Link href="https://developers.oxylabs.io/scraping-solutions/web-scraper-api" target="_blank" rel="noopener noreferrer">
+                Oxylabs Web Scraper API
+              </Link>
+              {" "}| Automated Hourly Data Pipeline with Oxylabs Scheduler | Geo-location Customization | Usage Statistics
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
               Built by Chiao-Fan Yang | GitHub Repo:{" "}
@@ -513,106 +553,165 @@ export default function Home() {
             </Button>
           </Stack>
 
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch">
+            <Paper
+              variant="outlined"
+              sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#3AA8D8", 0.28), flex: 1 }}
+            >
+              <Stack spacing={1.25}>
+                <Typography variant="body2" fontWeight={600}>
+                  Hourly Auto-Scraping with Oxylabs Scheduler
+                </Typography>
+
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Status: <strong>{oxylabsSchedulerStatus?.active ? "Active" : "Paused"}</strong>
+                  </Typography>
+                  {isSchedulerScraping && (
+                    <>
+                      <CircularProgress size={12} thickness={5} color="primary" />
+                      <Typography variant="caption" color="primary" fontWeight={600}>
+                        Scraping…
+                      </Typography>
+                    </>
+                  )}
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  Last updated: <strong>{formatDateTime(data?.last_updated ?? null)}</strong>
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Next Oxylabs run: <strong>{formatDateTime(oxylabsSchedulerStatus?.nextRunAt ?? null)}</strong>
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Schedule ID: <strong>{oxylabsSchedulerStatus?.scheduleId ?? "-"}</strong>
+                </Typography>
+
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Button
+                    size="small"
+                    variant={oxylabsSchedulerStatus?.active ? "outlined" : "contained"}
+                    color={oxylabsSchedulerStatus?.active ? "error" : "primary"}
+                    onClick={() => (oxylabsSchedulerStatus?.active ? void disableOxylabsScheduler() : void enableOxylabsScheduler())}
+                    disabled={isTogglingOxylabsScheduler}
+                    startIcon={isTogglingOxylabsScheduler ? <CircularProgress size={14} /> : undefined}
+                  >
+                    {isTogglingOxylabsScheduler ? "Saving..." : oxylabsSchedulerStatus?.active ? "Disable" : "Enable"}
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+
+            <Paper
+              variant="outlined"
+              sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#6B8CA8", 0.2), flex: 1 }}
+            >
+              <Stack spacing={1.5}>
+                <Typography variant="body2">
+                  Amazon marketplace: <strong>amazon.com</strong>
+                </Typography>
+
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Typography variant="body2">
+                    Postcode (Geo-location): <strong>{currentGeoLocation}</strong>
+                  </Typography>
+
+                  {!isEditingGeo ? (
+                    <Button size="small" variant="outlined" color="secondary" onClick={() => setIsEditingGeo(true)}>
+                      Edit
+                    </Button>
+                  ) : (
+                    <>
+                      <TextField
+                        size="small"
+                        value={draftGeoLocation}
+                        onChange={(event) => setDraftGeoLocation(event.target.value)}
+                        placeholder={settings?.default_geo_location ?? "90210"}
+                      />
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => void saveGeoLocation()}
+                        disabled={isSavingGeo}
+                        startIcon={isSavingGeo ? <CircularProgress size={14} /> : undefined}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => {
+                          setDraftGeoLocation(settings?.geo_location ?? "");
+                          setIsEditingGeo(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  )}
+                </Stack>
+
+                <Typography variant="caption" color="text.secondary">
+                  Enter a 5-digit ZIP from 00501 to 99950, or leave it blank for null.
+                </Typography>
+              </Stack>
+            </Paper>
+          </Stack>
+
           <Paper
             variant="outlined"
-            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#3AA8D8", 0.28) }}
+            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#12BFB3", 0.24) }}
           >
             <Stack spacing={1.25}>
               <Typography variant="body2" fontWeight={600}>
-                Hourly Auto-Scraping with Oxylabs Scheduler
+                <Link href="https://developers.oxylabs.io/scraping-solutions/web-scraper-api" target="_blank" rel="noopener noreferrer" underline="hover" color="inherit">
+                  Oxylabs Usage Statistics
+                </Link>
               </Typography>
 
-              <Stack direction="row" spacing={0.75} alignItems="center">
-                <Typography variant="caption" color="text.secondary">
-                  Status: <strong>{oxylabsSchedulerStatus?.active ? "Active" : "Paused"}</strong>
-                </Typography>
-                {isSchedulerScraping && (
-                  <>
-                    <CircularProgress size={12} thickness={5} color="primary" />
-                    <Typography variant="caption" color="primary" fontWeight={600}>
-                      Scraping…
+              {isLoadingUsageStats ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <CircularProgress size={14} />
+                  <Typography variant="caption" color="text.secondary">
+                    Loading usage statistics...
+                  </Typography>
+                </Stack>
+              ) : (
+                <Stack spacing={1.25}>
+       
+                  <Stack spacing={0.25}>
+                    <Typography variant="caption" color="text.secondary">
+                      Total successful results (`all_count`): <strong>{formatCount(usageStats?.all_count ?? 0)}</strong>
                     </Typography>
-                  </>
-                )}
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                Last updated: <strong>{formatDateTime(data?.last_updated ?? null)}</strong>
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Next Oxylabs run: <strong>{formatDateTime(oxylabsSchedulerStatus?.nextRunAt ?? null)}</strong>
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Schedule ID: <strong>{oxylabsSchedulerStatus?.scheduleId ?? "-"}</strong>
-              </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Billable usage proxy: counts successful results returned by Oxylabs.
+                    </Typography>
+                  </Stack>
 
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Button
-                  size="small"
-                  variant={oxylabsSchedulerStatus?.active ? "outlined" : "contained"}
-                  color={oxylabsSchedulerStatus?.active ? "error" : "primary"}
-                  onClick={() => (oxylabsSchedulerStatus?.active ? void disableOxylabsScheduler() : void enableOxylabsScheduler())}
-                  disabled={isTogglingOxylabsScheduler}
-                  startIcon={isTogglingOxylabsScheduler ? <CircularProgress size={14} /> : undefined}
-                >
-                  {isTogglingOxylabsScheduler ? "Saving..." : oxylabsSchedulerStatus?.active ? "Disable" : "Enable"}
-                </Button>
-              </Stack>
-            </Stack>
-          </Paper>
+                  <Stack spacing={0.25}>
+                    <Typography variant="caption" color="text.secondary">
+                      Average response time: <strong>{typeof usageStats?.average_response_time === "number" ? `${usageStats.average_response_time.toFixed(2)} ms` : "-"}</strong>
+                    </Typography>
+                  </Stack>
 
-          <Paper
-            variant="outlined"
-            sx={{ p: 2, borderRadius: 2, backgroundColor: alpha("#F8FCFE", 0.9), borderColor: alpha("#6B8CA8", 0.2) }}
-          >
-            <Stack spacing={1.5}>
-              <Typography variant="body2">
-                Amazon marketplace: <strong>amazon.com</strong>
-              </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Updated at: <strong>{formatDateTime(usageStats?.last_updated ?? null)}</strong>
+                  </Typography>
 
-              <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Typography variant="body2">
-                  Postcode (Geo-location): <strong>{currentGeoLocation}</strong>
-                </Typography>
-
-                {!isEditingGeo ? (
-                  <Button size="small" variant="outlined" color="secondary" onClick={() => setIsEditingGeo(true)}>
-                    Edit
-                  </Button>
-                ) : (
-                  <>
-                    <TextField
-                      size="small"
-                      value={draftGeoLocation}
-                      onChange={(event) => setDraftGeoLocation(event.target.value)}
-                      placeholder={settings?.default_geo_location ?? "90210"}
-                    />
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Button
                       size="small"
                       variant="contained"
-                      onClick={() => void saveGeoLocation()}
-                      disabled={isSavingGeo}
-                      startIcon={isSavingGeo ? <CircularProgress size={14} /> : undefined}
+                      color="primary"
+                      onClick={() => void loadUsageStatistics({ isManualUpdate: true })}
+                      disabled={isUpdatingUsageStats}
+                      startIcon={isUpdatingUsageStats ? <CircularProgress size={14} /> : undefined}
                     >
-                      Save
+                      {isUpdatingUsageStats ? "Updating..." : "Update"}
                     </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="secondary"
-                      onClick={() => {
-                        setDraftGeoLocation(settings?.geo_location ?? "");
-                        setIsEditingGeo(false);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                )}
-              </Stack>
-
-              <Typography variant="caption" color="text.secondary">
-                Enter a 5-digit ZIP from 00501 to 99950, or leave it blank for null.
-              </Typography>
+                  </Stack>
+                </Stack>
+              )}
             </Stack>
           </Paper>
 
